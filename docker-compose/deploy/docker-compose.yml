@@ -1,38 +1,29 @@
 name: lobehub
 services:
   lobe:
-    image: lobehub/lobehub
+    image: crpi-dzjyl2rfnlfugj1m.cn-shanghai.personal.cr.aliyuncs.com/frogclaw/lobehub:latest
     container_name: lobehub
     ports:
-      - '${LOBE_PORT}:3210'
+      - '3210:3210'
     depends_on:
       postgresql:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rustfs:
-        condition: service_healthy
-      rustfs-init:
-        condition: service_completed_successfully
     environment:
-      - 'KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}'
-      - 'AUTH_SECRET=${AUTH_SECRET}'
-      - 'DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresql:5432/${LOBE_DB_NAME}'
-      - 'S3_ENDPOINT=${S3_ENDPOINT}'
-      - 'S3_BUCKET=${RUSTFS_LOBE_BUCKET}'
+      - 'KEY_VAULTS_SECRET=xJhL9PZ0RtBw4vVn8FmDq2QkKcY7sN5xWgTrEpHX6qA='
+      - 'AUTH_SECRET=L9d1bK8mN5cVv7WxZq0XpFjR2nB6tYmH4vDcKxWgTrE='
+      - 'APP_URL=https://frogclaw.chat'
+      - 'DATABASE_URL=postgresql://postgres:uWNZugjBqixf8dxC@postgresql:5200/lobechat'
+      - 'S3_ENDPOINT=https://tos-s3-cn-beijing.volces.com'
+      - 'S3_BUCKET=huanxing'
       - 'S3_ENABLE_PATH_STYLE=1'
-      - 'S3_ACCESS_KEY_ID=${RUSTFS_ACCESS_KEY}'
-      - 'S3_SECRET_ACCESS_KEY=${RUSTFS_SECRET_KEY}'
       - 'LLM_VISION_IMAGE_USE_BASE64=1'
       - 'S3_SET_ACL=0'
       - 'SEARXNG_URL=http://searxng:8080'
-      - 'REDIS_URL=redis://redis:6379'
+      - 'REDIS_URL=redis://redis:6200'
       - 'REDIS_PREFIX=lobechat'
       - 'REDIS_TLS=0'
-    env_file:
-      - .env
-    extra_hosts:
-      - 's3.frogclaw.chat:host-gateway'
     restart: always
     networks:
       - lobe-network
@@ -44,14 +35,14 @@ services:
     # - You don't need external database access
     # - The ports conflict with other services on your host
     ports:
-      - '5432:5432'
+      - '5200:5200'
     volumes:
       - './data:/var/lib/postgresql/data'
     environment:
-      - 'POSTGRES_DB=${LOBE_DB_NAME}'
-      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
+      - 'POSTGRES_DB=lobechat'
+      - 'POSTGRES_PASSWORD=uWNZugjBqixf8dxC'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -p 5200']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -66,55 +57,16 @@ services:
     # - You don't need external access
     # - The ports conflict with other services on your host
     ports:
-      - '6379:6379'
-    command: redis-server --save 60 1000 --appendonly yes
+      - '6200:6200'
+    command: redis-server --port 6200 --save 60 1000 --appendonly yes
     volumes:
       - 'redis_data:/data'
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'redis-cli', '-p', '6200', 'ping']
       interval: 5s
       timeout: 3s
       retries: 5
     restart: always
-    networks:
-      - lobe-network
-
-  rustfs:
-    image: rustfs/rustfs:latest
-    container_name: lobe-rustfs
-    ports:
-      - '${RUSTFS_PORT}:9000'
-      - '${RUSTFS_ADMIN_PORT}:9001'
-    # Optional: Remove or change RUSTFS_ADMIN_PORT if:
-    # - You don't need external access to rustfs control panel
-    # - The ports conflict with other services on your host
-    # - RUSTFS_PORT is necessary only if you need to upload images to conversations. (avatar uploads are not affected)
-    # - Uploading images to conversations requires a browser-accessible S3_ENDPOINT.
-    environment:
-      - RUSTFS_CONSOLE_ENABLE=true
-      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
-      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
-    volumes:
-      - 'rustfs-data:/data'
-    healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:9000/health >/dev/null 2>&1 || exit 1']
-      interval: 5s
-      timeout: 3s
-      retries: 30
-    command:
-      ['--access-key', '${RUSTFS_ACCESS_KEY}', '--secret-key', '${RUSTFS_SECRET_KEY}', '/data']
-    networks:
-      - lobe-network
-
-  rustfs-init:
-    image: minio/mc:latest
-    container_name: lobe-rustfs-init
-    depends_on:
-      rustfs:
-        condition: service_healthy
-    entrypoint: /bin/sh
-    command: -c ' set -eux; echo "S3_ACCESS_KEY=${RUSTFS_ACCESS_KEY}, S3_SECRET_KEY=${RUSTFS_SECRET_KEY}"; mc --version; mc alias set rustfs "http://rustfs:9000" "${RUSTFS_ACCESS_KEY}" "${RUSTFS_SECRET_KEY}"; mc ls rustfs || true; mc mb "rustfs/lobe" --ignore-existing; mc anonymous set download "rustfs/lobe"; '
-    restart: 'no'
     networks:
       - lobe-network
 
@@ -128,8 +80,6 @@ services:
     restart: always
     networks:
       - lobe-network
-    env_file:
-      - .env
 
 networks:
   lobe-network:
@@ -137,6 +87,4 @@ networks:
 
 volumes:
   redis_data:
-    driver: local
-  rustfs-data:
     driver: local
