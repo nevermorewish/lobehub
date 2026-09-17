@@ -1,0 +1,9 @@
+/web/default/node_modules/
+/web/default/dist/
+/admin.exe
+/.env
+/.local/
+/coverage.out
+*.log
+!/.dockerignore
+!/web/default/pnpm-lock.yaml

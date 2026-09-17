@@ -1,0 +1,16 @@
+name: lobehub-go-admin
+services:
+  admin:
+    build: .
+    image: lobehub-go-admin:local
+    ports:
+      - '${ADMIN_BIND_ADDRESS:-127.0.0.1}:${ADMIN_PORT:-3211}:3211'
+    env_file: .env
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

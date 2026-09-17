@@ -1,0 +1,31 @@
+{
+  "name": "@lobehub/admin-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rsbuild build",
+    "dev": "rsbuild dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lobehub/ui": "5.40.3",
+    "antd": "^6.3.3",
+    "antd-style": "^4.1.0",
+    "i18next": "^25.8.0",
+    "lucide-react": "^0.577.0",
+    "motion": "^12.35.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-i18next": "^16.5.4",
+    "swr": "^2.4.0"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^2.0.1",
+    "@rsbuild/plugin-react": "^2.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "~5.9.3"
+  },
+  "packageManager": "pnpm@10.17.1"
+}
