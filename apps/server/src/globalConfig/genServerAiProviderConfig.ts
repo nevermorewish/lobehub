@@ -4,6 +4,7 @@ import * as AiModels from 'model-bank';
 
 import { loadModels } from '@/business/client/model-bank/loadModels';
 import { getLLMConfig } from '@/envs/llm';
+import { applyAdminCatalog, getAdminCatalog } from '@/server/services/adminManagement';
 import { extractEnabledModels, transformToAiModelList } from '@/utils/server/parseModels';
 
 export interface ProviderSpecificConfig {
@@ -80,5 +81,6 @@ export const genServerAiProvidersConfig = async (
     config[provider] = providerConfig;
   }
 
-  return config;
+  const adminCatalog = await getAdminCatalog();
+  return adminCatalog ? applyAdminCatalog(config, adminCatalog) : config;
 };

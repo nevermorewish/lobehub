@@ -1,6 +1,9 @@
 name: lobehub
 services:
   lobe:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
     image: crpi-dzjyl2rfnlfugj1m.cn-shanghai.personal.cr.aliyuncs.com/frogclaw/lobehub:latest
     container_name: lobehub
     ports:
@@ -11,19 +14,24 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - 'KEY_VAULTS_SECRET=xJhL9PZ0RtBw4vVn8FmDq2QkKcY7sN5xWgTrEpHX6qA='
-      - 'AUTH_SECRET=L9d1bK8mN5cVv7WxZq0XpFjR2nB6tYmH4vDcKxWgTrE='
-      - 'APP_URL=https://frogclaw.chat'
-      - 'DATABASE_URL=postgresql://postgres:uWNZugjBqixf8dxC@postgresql:5200/lobechat'
+      - 'KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}'
+      - 'AUTH_SECRET=${AUTH_SECRET}'
+      - 'JWKS_KEY=${JWKS_KEY}'
+      - 'APP_URL=http://106.55.12.78:3210'
+      - 'DATABASE_URL=${DATABASE_URL}'
       - 'S3_ENDPOINT=https://tos-s3-cn-beijing.volces.com'
       - 'S3_BUCKET=huanxing'
+      - 'S3_ACCESS_KEY_ID=${RUSTFS_ACCESS_KEY}'
+      - 'S3_SECRET_ACCESS_KEY=${RUSTFS_SECRET_KEY}'
       - 'S3_ENABLE_PATH_STYLE=1'
       - 'LLM_VISION_IMAGE_USE_BASE64=1'
       - 'S3_SET_ACL=0'
       - 'SEARXNG_URL=http://searxng:8080'
-      - 'REDIS_URL=redis://redis:6200'
+      - 'REDIS_URL=redis://redis:6210'
       - 'REDIS_PREFIX=lobechat'
       - 'REDIS_TLS=0'
+      - 'ADMIN_SERVICE_URL=http://admin:3211'
+      - 'ADMIN_INTEGRATION_TOKEN=${ADMIN_INTEGRATION_TOKEN}'
       # Gateway Mode: agent runs execute on the server and stream to the browser
       # through the gateway service below. The browser-facing AGENT_GATEWAY_URL
       # comes from .env; server-to-gateway traffic stays on the Compose network.
@@ -58,6 +66,35 @@ services:
     networks:
       - lobe-network
 
+  admin:
+    build:
+      context: ../../admin
+      dockerfile: Dockerfile
+    image: lobehub-go-admin:local
+    ports:
+      - '${ADMIN_BIND_ADDRESS:-127.0.0.1}:${ADMIN_PORT:-3211}:3211'
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${ADMIN_DATABASE_URL:?Set ADMIN_DATABASE_URL to the LobeHub PostgreSQL database}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD}
+      ADMIN_PUBLIC_URL: ${ADMIN_PUBLIC_URL:-http://localhost:3211}
+      ADMIN_ENCRYPTION_KEY: ${ADMIN_ENCRYPTION_KEY:?Set ADMIN_ENCRYPTION_KEY}
+      ADMIN_INTEGRATION_TOKEN: ${ADMIN_INTEGRATION_TOKEN:?Set ADMIN_INTEGRATION_TOKEN}
+      PORT: '3211'
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - lobe-network
+
   postgresql:
     image: paradedb/paradedb:latest-pg17
     container_name: lobe-postgres
@@ -73,7 +110,7 @@ services:
     command: ['postgres', '-p', '5200', '-c', 'shared_preload_libraries=pg_search,pg_cron,pg_stat_statements']
     environment:
       - 'POSTGRES_DB=lobechat'
-      - 'POSTGRES_PASSWORD=uWNZugjBqixf8dxC'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
     healthcheck:
       # Probe over TCP: during first-time initialization the image runs a temporary server that
       # only listens on the Unix socket, so a socket probe reports ready while LobeHub's TCP
@@ -95,12 +132,12 @@ services:
     # - You don't need external access
     # - The ports conflict with other services on your host
     ports:
-      - '6200:6200'
-    command: redis-server --port 6200 --save 60 1000 --appendonly yes
+      - '6210:6210'
+    command: redis-server --port 6210 --save 60 1000 --appendonly yes
     volumes:
       - 'redis_data:/data'
     healthcheck:
-      test: ['CMD', 'redis-cli', '-p', '6200', 'ping']
+      test: ['CMD', 'redis-cli', '-p', '6210', 'ping']
       interval: 5s
       timeout: 3s
       retries: 5

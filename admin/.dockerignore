@@ -1,0 +1,8 @@
+web/default/node_modules
+web/default/dist
+.local
+.env
+*.exe
+coverage.out
+**/*_test.go
+**/*.log

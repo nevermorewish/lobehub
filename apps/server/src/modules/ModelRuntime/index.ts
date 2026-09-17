@@ -40,6 +40,10 @@ import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';
 import { getLLMConfig } from '@/envs/llm';
 import { getServerGlobalConfig } from '@/server/globalConfig';
+import {
+  getAdminProviderPayload,
+  hasUserProviderConfiguration,
+} from '@/server/services/adminManagement';
 import { createLLMGenerationTracingHook } from '@/server/services/llmGenerationTracing/hook';
 import { ensureFreshOAuthToken } from '@/server/services/oauthDeviceFlow/refresh';
 
@@ -517,7 +521,10 @@ export const initModelRuntimeFromDB = async (
     keyVaults = { ...keyVaults, ...freshKeyVaults } as ProviderKeyVaults;
   }
 
-  const payload = buildPayloadFromKeyVaults(keyVaults, runtimeProvider);
+  const platformPayload = hasUserProviderConfiguration(keyVaults)
+    ? undefined
+    : await getAdminProviderPayload(provider);
+  const payload = platformPayload ?? buildPayloadFromKeyVaults(keyVaults, runtimeProvider);
 
   // 4. Get business hooks (billing in cloud, undefined in OSS)
   const businessHooks = getBusinessModelRuntimeHooks(userId, provider, workspaceId);
