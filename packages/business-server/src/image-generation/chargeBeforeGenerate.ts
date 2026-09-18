@@ -1,7 +1,9 @@
 import { type SpendOrigin } from '@lobechat/types';
 
+import { getServerDB } from '@/database/core/db-adaptor';
 import { type NewGeneration, type NewGenerationBatch } from '@/database/schemas';
 import { type CreateImageServicePayload } from '@/server/routers/lambda/image';
+import { reserveGeneration } from '@/server/services/billing/generation';
 
 interface ChargeParams {
   clientIp?: string | null;
@@ -38,6 +40,8 @@ type ChargeResult =
       prechargeItems?: unknown[];
     };
 
-export async function chargeBeforeGenerate(_params: ChargeParams): Promise<ChargeResult> {
-  return undefined;
+export async function chargeBeforeGenerate(params: ChargeParams): Promise<ChargeResult> {
+  if (!process.env.ADMIN_SERVICE_URL) return undefined;
+  const handles = await reserveGeneration(await getServerDB(), { ...params, count: params.imageNum, modelType: 'image' });
+  return { prechargeItems: handles };
 }

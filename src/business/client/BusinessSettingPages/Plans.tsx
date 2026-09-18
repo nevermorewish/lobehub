@@ -1,3 +1,1 @@
-const Plans = () => null;
-
-export default Plans;
+export { CreditPlans as default } from '@/features/Billing/Plans';

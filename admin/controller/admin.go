@@ -33,6 +33,8 @@ func respond(c *gin.Context, data any, err error) {
 		Fail(c, 409, "conflict", "Record changed or already exists; reload and try again")
 	case errors.Is(err, service.ErrUnauthorized):
 		Fail(c, 401, "unauthorized", "Invalid username or password")
+	case errors.Is(err, service.ErrInsufficientCredits):
+		Fail(c, 400, "insufficient_credits", "Adjustment exceeds available credits")
 	case errors.Is(err, service.ErrInvalid):
 		Fail(c, 400, "invalid_input", "Check the form fields and try again")
 	default:
@@ -132,6 +134,10 @@ func (h *Controller) Catalog(c *gin.Context) {
 }
 func (h *Controller) RuntimeProvider(c *gin.Context) {
 	data, err := h.Service.RuntimeProvider(c.Request.Context(), c.Param("id"))
+	respond(c, data, err)
+}
+func (h *Controller) RuntimePayment(c *gin.Context) {
+	data, err := h.Service.RuntimePayment(c.Request.Context(), c.Param("id"))
 	respond(c, data, err)
 }
 func (h *Controller) Audit(c *gin.Context) {

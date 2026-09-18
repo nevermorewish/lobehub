@@ -39,6 +39,12 @@ func New(s *service.Service, web fs.FS) *gin.Engine {
 	admin.POST("/prices", h.SavePrice)
 	admin.DELETE("/prices/:id", h.ArchivePrice)
 	admin.GET("/payments", h.Payments)
+	admin.GET("/billing/wallets", h.BillingWallets)
+	admin.POST("/billing/wallets/:id/adjust", h.AdjustWallet)
+	admin.GET("/billing/orders", h.BillingOrders)
+	admin.GET("/billing/ledger", h.BillingLedger)
+	admin.GET("/billing/packs", h.CreditPacks)
+	admin.POST("/billing/packs", h.SaveCreditPack)
 	admin.PUT("/payments/:id", h.SavePayment)
 	admin.GET("/audit", h.Audit)
 	admin.GET("/conversations", h.Conversations)
@@ -53,6 +59,7 @@ func New(s *service.Service, web fs.FS) *gin.Engine {
 	internal := r.Group("/internal/v1", h.RequireIntegration())
 	internal.GET("/catalog", h.Catalog)
 	internal.GET("/providers/:id", h.RuntimeProvider)
+	internal.GET("/payments/:id", h.RuntimePayment)
 	if web != nil {
 		fileServer := http.FileServer(http.FS(web))
 		r.NoRoute(func(c *gin.Context) {

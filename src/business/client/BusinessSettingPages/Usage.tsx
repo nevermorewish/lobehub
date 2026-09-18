@@ -1,3 +1,1 @@
-const Usage = () => null;
-
-export default Usage;
+export { CreditUsage as default } from '@/features/Billing/History';

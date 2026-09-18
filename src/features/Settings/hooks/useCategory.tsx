@@ -89,6 +89,7 @@ export const useCategory = () => {
     return avatar;
   }, [avatar, remoteServerUrl]);
   const enableBusinessFeatures = useServerConfigStore(serverConfigSelectors.enableBusinessFeatures);
+  const enableCreditBilling = useServerConfigStore((s) => s.serverConfig.enableCreditBilling);
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     const groups: CategoryGroup[] = [];
 
@@ -154,19 +155,19 @@ export const useCategory = () => {
     // Personal subscription / billing items. Always shown when business
     // features are enabled — workspace settings live under a separate
     // `/:workspaceSlug/settings/*` surface and never share this sidebar.
-    if (enableBusinessFeatures) {
+    if (enableBusinessFeatures || enableCreditBilling) {
       const subscriptionItems: CategoryItem[] = [
-        { icon: Map, key: SettingsTabs.Plans, label: tSubscription('tab.plans') },
+        { icon: Map, key: SettingsTabs.Plans, label: tSubscription(enableCreditBilling ? 'creditPack.title' : 'tab.plans') },
         { icon: ChartColumnBigIcon, key: SettingsTabs.Usage, label: t('tab.usage') },
         { icon: Coins, key: SettingsTabs.Credits, label: tSubscription('tab.credits') },
         { icon: CreditCard, key: SettingsTabs.Billing, label: tSubscription('tab.billing') },
-        { icon: Gift, key: SettingsTabs.Referral, label: tSubscription('tab.referral') },
+        ...(enableBusinessFeatures ? [{ icon: Gift, key: SettingsTabs.Referral, label: tSubscription('tab.referral') }] : []),
       ];
 
       groups.push({
         items: subscriptionItems,
         key: SettingsGroupKey.Subscription,
-        title: t('group.subscription'),
+        title: enableCreditBilling ? tSubscription('creditPack.account') : t('group.subscription'),
       });
     }
 
@@ -290,6 +291,7 @@ export const useCategory = () => {
     tLabs,
     tSubscription,
     enableBusinessFeatures,
+    enableCreditBilling,
     hideDocs,
     mobile,
     showApiKeyManage,

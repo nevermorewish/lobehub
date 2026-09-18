@@ -62,8 +62,8 @@ func validatePayment(id string, c PaymentConfig, s PaymentSecrets, enabled bool)
 	if !enabled {
 		return nil
 	}
-	if id == "alipay" && (c.AppID == "" || c.NotifyURL == "" || c.ReturnURL == "" || s.PrivateKey == "" || s.PublicKey == "" || c.Currency != "CNY") {
-		return errors.New("Alipay requires App ID, callback URLs, RSA2 keys and CNY currency")
+	if id == "alipay" && (c.AppID == "" || c.MerchantID == "" || c.NotifyURL == "" || c.ReturnURL == "" || s.PrivateKey == "" || s.PublicKey == "" || c.Currency != "CNY") {
+		return errors.New("Alipay requires App ID, seller PID, callback URLs, RSA2 keys and CNY currency")
 	}
 	if id == "stripe" && (!strings.HasPrefix(s.SecretKey, "sk_") || !strings.HasPrefix(s.WebhookSecret, "whsec_") || !strings.HasPrefix(c.PublishableKey, "pk_") || c.NotifyURL == "" || c.ReturnURL == "") {
 		return errors.New("Stripe requires publishable, secret and webhook keys and callback URLs")
@@ -72,6 +72,23 @@ func validatePayment(id string, c PaymentConfig, s PaymentSecrets, enabled bool)
 		return errors.New("production payment callbacks require HTTPS")
 	}
 	return nil
+}
+
+// Runtime credentials are exposed only through the authenticated internal API.
+// Disabled configurations remain readable for verifying payments already in flight.
+func (s *Service) RuntimePayment(ctx context.Context, id string) (map[string]any, error) {
+	var p model.Payment
+	if id != "alipay" {
+		return nil, ErrInvalid
+	}
+	if err := s.DB.WithContext(ctx).First(&p, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	c, secrets, err := s.paymentData(p)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"enabled": p.Enabled, "config": c, "privateKey": secrets.PrivateKey, "publicKey": secrets.PublicKey}, nil
 }
 
 func parsePrivateKey(value string) (*rsa.PrivateKey, error) {

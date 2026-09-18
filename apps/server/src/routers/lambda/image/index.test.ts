@@ -161,6 +161,16 @@ describe('imageRouter', () => {
     ...overrides,
   });
 
+  it('releases every precharge when task creation rolls back', async () => {
+    mockChargeBeforeGenerate.mockResolvedValue({ prechargeItems: [{ usageId: 'one' }, { usageId: 'two' }] });
+    mockServerDB.transaction.mockRejectedValueOnce(new Error('task insert failed'));
+    const caller = imageRouter.createCaller(createMockCtx() as any);
+    await expect(caller.createImage(createDefaultInput())).rejects.toThrow('task insert failed');
+    expect(mockChargeAfterGenerate).toHaveBeenCalledTimes(2);
+    expect(mockChargeAfterGenerate).toHaveBeenCalledWith(expect.objectContaining({ isError: true, prechargeResult: { usageId: 'one' } }));
+    expect(mockChargeAfterGenerate).toHaveBeenCalledWith(expect.objectContaining({ isError: true, prechargeResult: { usageId: 'two' } }));
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertValues.length = 0;

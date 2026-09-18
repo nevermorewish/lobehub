@@ -21,6 +21,8 @@ import { styles } from '../styles';
 import type { Page, Price, Provider } from '../types';
 
 const emptyPrice: Price = {
+  modelType: 'chat',
+  requestCreditsFlat: 0,
   id: '',
   provider: '',
   modelId: '',
@@ -61,6 +63,24 @@ function PriceEditor({
     >
       <span className={styles.muted}>{t('priceVersionHint')}</span>
       <div className={styles.fields}>
+        <Pick
+          label={t('billing.modelType')}
+          value={draft.modelType}
+          options={['chat', 'image', 'video'].map((value) => ({
+            value,
+            label: t('billing.modelType.' + value),
+          }))}
+          onChange={(value) => setDraft({ ...draft, modelType: value as Price['modelType'] })}
+        />
+        <Field
+          required
+          label={t('billing.requestPrice')}
+          min={0}
+          max={1000000000}
+          type="number"
+          value={draft.requestCreditsFlat}
+          onChange={(value) => setDraft({ ...draft, requestCreditsFlat: Number(value) })}
+        />
         <Pick
           label={t('providers')}
           value={draft.provider}

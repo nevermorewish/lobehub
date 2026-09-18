@@ -3,6 +3,7 @@ import debug from 'debug';
 
 import { getProviderContentPolicyErrorMessage } from '@/business/server/getProviderContentPolicyErrorMessage';
 import { trackProviderContentPolicyViolation } from '@/business/server/trackProviderContentPolicyViolation';
+import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { GenerationModel } from '@/database/models/generation';
 import type { LobeChatDatabase } from '@/database/type';
@@ -98,6 +99,11 @@ export async function processBackgroundVideoPolling(
 
     const duration = Date.now() - asyncTaskCreatedAt.getTime();
 
+    await chargeAfterGenerate({
+      metadata: { asyncTaskId, generationBatchId, modelId: model, topicId: params.generationTopicId },
+      model, prechargeResult: params.prechargeResult, provider, userId, workspaceId,
+    });
+
     await asyncTaskModel.update(asyncTaskId, {
       duration,
       status: AsyncTaskStatus.Success,
@@ -106,6 +112,16 @@ export async function processBackgroundVideoPolling(
     log('Video processing completed successfully for task: %s', asyncTaskId);
   } catch (error) {
     log('Background video polling error for task: %s', asyncTaskId, error);
+
+    try {
+      await chargeAfterGenerate({
+        isError: true,
+        metadata: { asyncTaskId, generationBatchId, modelId: model, topicId: params.generationTopicId },
+        model, prechargeResult: params.prechargeResult, provider, userId, workspaceId,
+      });
+    } catch (billingError) {
+      console.error('[billing:video] Reservation requires reconciliation', billingError);
+    }
 
     const asyncTaskModel = new AsyncTaskModel(db, userId, workspaceId);
     const providerContentPolicyMessage = await getProviderContentPolicyErrorMessage({

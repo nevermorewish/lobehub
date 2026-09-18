@@ -482,7 +482,8 @@
     "yaml": "^2.9.0",
     "zod": "^4.4.3",
     "zustand": "5.0.4",
-    "zustand-utils": "^2.1.1"
+    "zustand-utils": "^2.1.1",
+    "@lobechat/billing": "workspace:*"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

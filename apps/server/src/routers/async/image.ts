@@ -292,7 +292,7 @@ export const imageRouter = router({
             console.error('[image-async] notification failed:', err);
           }
 
-          if (ENABLE_BUSINESS_FEATURES) {
+          if (ENABLE_BUSINESS_FEATURES || process.env.ADMIN_SERVICE_URL) {
             // Contain success-billing errors: the image is already delivered and
             // the task marked Success, so a billing failure here must not fall
             // into the outer catch and be reconciled as a generation failure.
@@ -376,7 +376,7 @@ export const imageRouter = router({
 
         // Reconcile the pre-submission billing on failure. Wrapped so a billing
         // error never masks the original failure report.
-        if (ENABLE_BUSINESS_FEATURES) {
+        if (ENABLE_BUSINESS_FEATURES || process.env.ADMIN_SERVICE_URL) {
           try {
             await chargeAfterGenerate({
               isError: true,

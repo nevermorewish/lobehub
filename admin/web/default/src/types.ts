@@ -27,6 +27,8 @@ export interface Provider {
   sdkType: string;
 }
 export interface Price {
+  modelType: 'chat' | 'image' | 'video';
+  requestCreditsFlat: number;
   archivedAt: string | null;
   completionCreditsPerKToken: number;
   contextWindow: number;

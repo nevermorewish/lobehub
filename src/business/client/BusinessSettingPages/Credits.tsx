@@ -1,3 +1,1 @@
-const Credits = () => null;
-
-export default Credits;
+export { CreditBalance as default } from '@/features/Billing/Credits';

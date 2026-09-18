@@ -248,6 +248,18 @@ export const videoRouter = router({
           batch,
           generation,
         };
+      }).catch(async (error) => {
+        console.error('Video task creation rolled back:', error);
+        await chargeAfterGenerate({
+          isError: true,
+          metadata: { modelId: model, topicId: generationTopicId },
+          model,
+          prechargeResult,
+          provider,
+          userId,
+          workspaceId: wsId,
+        });
+        throw error;
       });
 
       log('Database transaction completed. Calling model runtime for video generation.');

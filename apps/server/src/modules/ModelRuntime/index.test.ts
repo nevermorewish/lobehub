@@ -86,6 +86,17 @@ vi.mock('@/envs/llm', () => ({
 }));
 
 describe('resolveServerModel', () => {
+  it('rejects partial user Vertex credentials before application-default auth can run', () => {
+    expect(() => initModelRuntimeWithUserPayload('vertexai', { vertexAIRegion: 'us-central1' }, { project: 'user-project' }, undefined, false))
+      .toThrow(expect.objectContaining({ errorType: 'InvalidProviderAPIKey' }));
+  });
+
+  it('never borrows a server key for a user-owned endpoint without credentials', async () => {
+    await expect((async () => initModelRuntimeWithUserPayload(
+      'openai', { baseURL: 'https://user-endpoint.test/v1' }, {}, undefined, false,
+    ))()).rejects.toMatchObject({ errorType: 'InvalidProviderAPIKey' });
+  });
+
   it('accepts only an enabled deployment-owned chat model', async () => {
     getServerGlobalConfig.mockResolvedValue({
       aiProvider: {

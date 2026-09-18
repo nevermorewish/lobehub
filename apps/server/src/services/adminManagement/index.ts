@@ -10,6 +10,8 @@ const providerSchema = z.object({
   sdkType: z.string(),
 });
 const priceSchema = z.object({
+  modelType: z.enum(['chat', 'image', 'video']).default('chat'),
+  requestCreditsFlat: z.number().int().nonnegative().default(0),
   completionCreditsPerKToken: z.number().int().nonnegative(),
   contextWindow: z.number().int().nonnegative(),
   displayName: z.string(),
@@ -59,6 +61,18 @@ async function request<T>(path: string, schema: z.ZodType<T>): Promise<T | undef
 
 export const getAdminCatalog = () => request('/catalog', catalogSchema);
 
+const alipaySchema = z.object({
+  enabled: z.boolean(),
+  config: z.object({
+    appId: z.string().min(1), merchantId: z.string().min(1), currency: z.literal('CNY'),
+    notifyURL: z.url(), returnURL: z.url(), sandbox: z.boolean(),
+  }),
+  privateKey: z.string().min(1), publicKey: z.string().min(1),
+});
+
+export const getAdminAlipayConfig = () => request('/payments/alipay', alipaySchema);
+export type AlipayConfig = z.infer<typeof alipaySchema>;
+
 export async function getAdminProviderPayload(
   provider: string,
 ): Promise<ClientSecretPayload | undefined> {
@@ -98,7 +112,7 @@ export function applyAdminCatalog(config: Record<string, ProviderConfig>, catalo
           displayName: price.displayName || price.modelId,
           enabled: true,
           id: price.modelId,
-          type: 'chat' as const,
+          type: price.modelType,
         })),
       }),
     };
