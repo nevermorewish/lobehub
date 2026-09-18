@@ -65,6 +65,7 @@ export * from './work';
 // it more likes the UI message payload
 export * from './acceptanceFlow';
 export * from './agentRuntime';
+export * from './billing';
 export * from './openai/chat';
 export * from './openai/plugin';
 export * from './subscription';

@@ -7,6 +7,7 @@ import {
 } from '@lobechat/heterogeneous-agents';
 import {
   AgentRuntimeError,
+  AgentRuntimeErrorType,
   mergeModelRuntimeHooks,
   ModelRuntime,
   type ModelRuntimeHooks,
@@ -44,6 +45,7 @@ import {
   getAdminProviderPayload,
   hasUserProviderConfiguration,
 } from '@/server/services/adminManagement';
+import { attachChatBilling } from '@/server/services/billing/chat';
 import { createLLMGenerationTracingHook } from '@/server/services/llmGenerationTracing/hook';
 import { ensureFreshOAuthToken } from '@/server/services/oauthDeviceFlow/refresh';
 
@@ -210,8 +212,9 @@ export const buildPayloadFromKeyVaults = (
  * @param payload - The JWT payload.
  * @returns The options object.
  */
-const getParamsFromPayload = (provider: string, payload: ClientSecretPayload) => {
-  const llmConfig = getLLMConfig() as Record<string, any>;
+const getParamsFromPayload = (provider: string, payload: ClientSecretPayload, allowServerCredentials = true) => {
+  const runtimeEnv: Record<string, string | undefined> = allowServerCredentials ? process.env : {};
+  const llmConfig = (allowServerCredentials ? getLLMConfig() : {}) as Record<string, any>;
 
   switch (provider) {
     case ModelProvider.LobeHub: {
@@ -230,13 +233,13 @@ const getParamsFromPayload = (provider: string, payload: ClientSecretPayload) =>
       }
 
       const apiKey = apiKeyManager.pick(payload?.apiKey || llmConfig[`${upperProvider}_API_KEY`]);
-      const baseURL = payload?.baseURL || process.env[`${upperProvider}_PROXY_URL`];
+      const baseURL = payload?.baseURL || runtimeEnv[`${upperProvider}_PROXY_URL`];
 
       return baseURL ? { apiKey, baseURL } : { apiKey };
     }
 
     case ModelProvider.Ollama: {
-      const baseURL = payload?.baseURL || process.env.OLLAMA_PROXY_URL;
+      const baseURL = payload?.baseURL || runtimeEnv.OLLAMA_PROXY_URL;
 
       return { baseURL };
     }
@@ -388,19 +391,27 @@ const getParamsFromPayload = (provider: string, payload: ClientSecretPayload) =>
 const buildVertexOptions = (
   payload: ClientSecretPayload,
   params: Partial<GoogleGenAIOptions> = {},
+  allowServerCredentials = true,
 ): GoogleGenAIOptions => {
-  const rawCredentials = payload.apiKey || process.env.VERTEXAI_CREDENTIALS || '';
+  const runtimeEnv: Record<string, string | undefined> = allowServerCredentials ? process.env : {};
+  const rawCredentials = payload.apiKey || runtimeEnv.VERTEXAI_CREDENTIALS || '';
   const credentials = safeParseJSON<Record<string, string>>(rawCredentials);
+
+  if (!allowServerCredentials && !(credentials?.client_email && credentials?.private_key)) {
+    throw AgentRuntimeError.createError(AgentRuntimeErrorType.InvalidProviderAPIKey, {
+      message: 'User Vertex configuration requires service account credentials',
+    });
+  }
 
   const projectFromParams = params.project as string | undefined;
   const projectFromCredentials = credentials?.project_id;
-  const projectFromEnv = process.env.VERTEXAI_PROJECT;
+  const projectFromEnv = runtimeEnv.VERTEXAI_PROJECT;
 
   const project = projectFromParams || projectFromCredentials || projectFromEnv;
   const location =
     (params.location as string | undefined) ||
     payload.vertexAIRegion ||
-    process.env.VERTEXAI_LOCATION ||
+    runtimeEnv.VERTEXAI_LOCATION ||
     undefined;
 
   const googleAuthOptions = params.googleAuthOptions || (credentials ? { credentials } : undefined);
@@ -429,6 +440,7 @@ export const initModelRuntimeWithUserPayload = (
   payload: ClientSecretPayload,
   params: any = {},
   hooks?: ModelRuntimeHooks,
+  allowServerCredentials = true,
 ) => {
   const runtimeProvider = payload.runtimeProvider ?? provider;
 
@@ -444,7 +456,7 @@ export const initModelRuntimeWithUserPayload = (
   }
 
   if (runtimeProvider === ModelProvider.VertexAI) {
-    const vertexOptions = buildVertexOptions(payload, params);
+    const vertexOptions = buildVertexOptions(payload, params, allowServerCredentials);
     const runtime = LobeVertexAI.initFromVertexAI(vertexOptions);
 
     return new ModelRuntime(runtime, hooks);
@@ -453,7 +465,9 @@ export const initModelRuntimeWithUserPayload = (
   return ModelRuntime.initializeWithProvider(
     runtimeProvider,
     {
-      ...getParamsFromPayload(runtimeProvider, payload),
+      ...getParamsFromPayload(runtimeProvider, payload, allowServerCredentials),
+      // Block SDK environment fallback when a user supplies their own endpoint.
+      ...(!allowServerCredentials && !payload.apiKey && { apiKey: '' }),
       ...params,
     },
     hooks,
@@ -521,7 +535,8 @@ export const initModelRuntimeFromDB = async (
     keyVaults = { ...keyVaults, ...freshKeyVaults } as ProviderKeyVaults;
   }
 
-  const platformPayload = hasUserProviderConfiguration(keyVaults)
+  const userConfigured = hasUserProviderConfiguration(keyVaults);
+  const platformPayload = userConfigured
     ? undefined
     : await getAdminProviderPayload(provider);
   const payload = platformPayload ?? buildPayloadFromKeyVaults(keyVaults, runtimeProvider);
@@ -535,7 +550,10 @@ export const initModelRuntimeFromDB = async (
   const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
 
   // 6. Initialize ModelRuntime with the payload and hooks
-  return initModelRuntimeWithUserPayload(provider, payload, { userId, workspaceId }, hooks);
+  const runtime = await initModelRuntimeWithUserPayload(provider, payload, { userId, workspaceId }, hooks, !userConfigured);
+  return attachChatBilling(runtime, { db, provider, userId,
+    userHasCredentials: userConfigured,
+  });
 };
 
 export interface ServerDefaultHeterogeneousModelReference {

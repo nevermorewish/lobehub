@@ -14,6 +14,10 @@ import { getServerGlobalConfig } from '@/server/globalConfig';
 import { type SPAClientEnv, type SPAServerConfig } from '@/types/spaServerConfig';
 import { RouteVariants } from '@/utils/server/routeVariants';
 
+// The shell includes runtime admin catalog and billing flags. Docker images are
+// built without deployment credentials; these values must be read per request.
+export const dynamic = 'force-dynamic';
+
 export function generateStaticParams() {
   const mobileOptions = isDesktop ? [false] : [true, false];
   const staticLocales: Locales[] = ['en-US', 'zh-CN'];

@@ -1490,3 +1490,12 @@ export const swrKeys = {
   verify: verifyKeys,
   video: videoKeys,
 };
+
+export const billingKeys = {
+  balance: () => ['billing:balance'],
+  plans: () => ['billing:plans'],
+  ledger: (offset: number) => ['billing:ledger', offset],
+  orders: (offset: number) => ['billing:orders', offset],
+  usage: (offset: number) => ['billing:usage', offset],
+  order: (id: string) => ['billing:order', id],
+};

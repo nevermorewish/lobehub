@@ -102,6 +102,8 @@ export interface GlobalServerConfig {
   disableEmailPassword?: boolean;
   enableBusinessFeatures?: boolean;
   enableComposio?: boolean;
+  /** Self-hosted personal credit billing, independent of cloud subscriptions. */
+  enableCreditBilling?: boolean;
   /**
    * @deprecated
    */

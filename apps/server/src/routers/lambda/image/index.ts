@@ -312,7 +312,18 @@ export const imageRouter = router({
             generationsWithTasks,
           };
         },
-      );
+      ).catch(async (error) => {
+        console.error('Image task creation rolled back:', error);
+        await Promise.all((prechargeItems ?? []).map((prechargeResult) => chargeAfterGenerate({
+          isError: true,
+          metadata: { modelId: model, topicId: generationTopicId },
+          prechargeResult,
+          provider,
+          userId,
+          workspaceId: wsId,
+        })));
+        throw error;
+      });
 
       log('Database transaction completed successfully. Starting async task triggers directly.');
 
@@ -373,7 +384,7 @@ export const imageRouter = router({
         // The async router never ran for these tasks, so its failure billing
         // reconciliation cannot fire — reconcile each generation's billing
         // handle here instead of leaving it dangling.
-        if (ENABLE_BUSINESS_FEATURES && prechargeItems?.length) {
+        if ((ENABLE_BUSINESS_FEATURES || process.env.ADMIN_SERVICE_URL) && prechargeItems?.length) {
           await Promise.allSettled(
             generationsWithTasks.map(async ({ asyncTaskId }, index) => {
               const prechargeItem = prechargeItems[index];

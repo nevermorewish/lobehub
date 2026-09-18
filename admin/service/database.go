@@ -16,9 +16,10 @@ import (
 )
 
 var (
-	ErrConflict     = errors.New("record changed; reload and try again")
-	ErrInvalid      = errors.New("invalid input")
-	ErrUnauthorized = errors.New("invalid username or password")
+	ErrConflict            = errors.New("record changed; reload and try again")
+	ErrInvalid             = errors.New("invalid input")
+	ErrInsufficientCredits = errors.New("insufficient available credits")
+	ErrUnauthorized        = errors.New("invalid username or password")
 )
 
 type Service struct {

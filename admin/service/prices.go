@@ -29,6 +29,15 @@ func (s *Service) Prices(ctx context.Context, search string, archived bool, page
 }
 
 func (s *Service) SavePrice(ctx context.Context, actor string, input model.Price) (model.Price, error) {
+	if input.ModelType == "" {
+		input.ModelType = "chat"
+	}
+	if input.ModelType != "chat" && input.ModelType != "image" && input.ModelType != "video" {
+		return input, ErrInvalid
+	}
+	if input.RequestCreditsFlat < 0 || input.RequestCreditsFlat > 1000000000 {
+		return input, ErrInvalid
+	}
 	input.ModelID = strings.TrimSpace(input.ModelID)
 	if !identifier.MatchString(input.Provider) || input.ModelID == "" || len(input.ModelID) > 128 || len(input.DisplayName) > 128 || len(input.Note) > 512 || input.ContextWindow < 0 || input.ContextWindow > 100000000 || input.PromptCreditsPerKToken < 0 || input.CompletionCreditsPerKToken < 0 || input.PromptCreditsPerKToken > 1000000000 || input.CompletionCreditsPerKToken > 1000000000 {
 		return input, ErrInvalid

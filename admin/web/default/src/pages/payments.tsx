@@ -55,6 +55,7 @@ function PaymentEditor({
             />
             <Field
               label={t('merchantId')}
+              required={enabled}
               value={config.merchantId}
               onChange={(merchantId) => setConfig({ ...config, merchantId })}
             />
@@ -83,19 +84,11 @@ function PaymentEditor({
         />
         <Pick
           label={t('currency')}
-          options={['CNY', 'USD'].map((value) => ({ value, label: value }))}
+          options={(payment.id === 'alipay' ? ['CNY'] : ['CNY', 'USD']).map((value) => ({ value, label: value }))}
           value={config.currency}
           onChange={(currency) => setConfig({ ...config, currency })}
         />
-        <Field
-          required
-          label={t('creditsPerUnit')}
-          max={1000000000}
-          min={1}
-          type="number"
-          value={config.creditsPerUnit}
-          onChange={(value) => setConfig({ ...config, creditsPerUnit: Number(value) })}
-        />
+
       </div>
       <span className={styles.muted}>{t('secretHint')}</span>
       <div className={styles.fields}>
@@ -154,7 +147,7 @@ export function PaymentsPage() {
         retry={() => void mutate()}
       >
         <div className={styles.grid}>
-          {data?.map((payment) => (
+          {data?.filter((payment) => payment.id === 'alipay').map((payment) => (
             <Flexbox className={styles.card} gap={24} key={payment.id}>
               <Flexbox horizontal align="center" justify="space-between">
                 <h2 style={{ margin: 0 }}>{t(payment.id)}</h2>
@@ -165,7 +158,7 @@ export function PaymentsPage() {
                   {t('currency')}: {payment.config.currency}
                 </span>
                 <span>
-                  {t('creditsPerUnit')}: {payment.config.creditsPerUnit.toLocaleString()}
+                  {t('billing.packHint')}
                 </span>
                 <span className={styles.muted}>
                   {t('sandbox')}: {t(payment.config.sandbox ? 'enabled' : 'disabled')}

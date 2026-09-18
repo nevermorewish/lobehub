@@ -221,7 +221,7 @@ export const videoRouter = router({
           status: AsyncTaskStatus.Success,
         });
 
-        if (ENABLE_BUSINESS_FEATURES && prechargeResult) {
+        if ((ENABLE_BUSINESS_FEATURES || process.env.ADMIN_SERVICE_URL) && prechargeResult) {
           try {
             await chargeAfterGenerate({
               computePriceParams: {
@@ -303,7 +303,7 @@ export const videoRouter = router({
 
       log('Task status updated to Error: %s', asyncTaskId);
 
-      if (prechargeResult && ENABLE_BUSINESS_FEATURES) {
+      if (prechargeResult && (ENABLE_BUSINESS_FEATURES || process.env.ADMIN_SERVICE_URL)) {
         try {
           await chargeAfterGenerate({
             isError: true,

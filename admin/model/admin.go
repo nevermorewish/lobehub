@@ -34,12 +34,14 @@ type Provider struct {
 func (Provider) TableName() string { return "admin_providers" }
 
 type Price struct {
+	ModelType                  string     `gorm:"not null;default:chat;size:16" json:"modelType"`
 	ID                         string     `gorm:"primaryKey;size:64" json:"id"`
 	Provider                   string     `gorm:"index:admin_price_lookup;size:64;not null" json:"provider"`
 	ModelID                    string     `gorm:"index:admin_price_lookup;size:128;not null" json:"modelId"`
 	DisplayName                string     `gorm:"size:128" json:"displayName"`
 	PromptCreditsPerKToken     int64      `gorm:"not null;check:admin_prompt_nonnegative,prompt_credits_per_k_token >= 0" json:"promptCreditsPerKToken"`
 	CompletionCreditsPerKToken int64      `gorm:"not null;check:admin_completion_nonnegative,completion_credits_per_k_token >= 0" json:"completionCreditsPerKToken"`
+	RequestCreditsFlat         int64      `gorm:"not null;default:0;check:admin_request_nonnegative,request_credits_flat >= 0" json:"requestCreditsFlat"`
 	ContextWindow              int        `json:"contextWindow"`
 	Vision                     bool       `json:"vision"`
 	FunctionCall               bool       `json:"functionCall"`

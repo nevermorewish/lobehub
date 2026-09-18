@@ -7,3 +7,9 @@ npm-debug.log
 .github
 *.md
 .env.example
+**/.env*
+**/node_modules
+.temp
+.temp-*
+.records
+.acceptances

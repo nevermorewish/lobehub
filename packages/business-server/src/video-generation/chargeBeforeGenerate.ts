@@ -1,5 +1,7 @@
+import { getServerDB } from '@/database/core/db-adaptor';
 import type { NewGeneration, NewGenerationBatch } from '@/database/schemas';
 import type { CreateVideoServicePayload } from '@/server/routers/lambda/video';
+import { reserveGeneration } from '@/server/services/billing/generation';
 
 interface ChargeParams {
   generationTopicId: string;
@@ -23,6 +25,8 @@ interface ChargeBeforeResult {
   prechargeResult?: Record<string, unknown>;
 }
 
-export async function chargeBeforeGenerate(_params: ChargeParams): Promise<ChargeBeforeResult> {
-  return {};
+export async function chargeBeforeGenerate(params: ChargeParams): Promise<ChargeBeforeResult> {
+  if (!process.env.ADMIN_SERVICE_URL) return {};
+  const handles = await reserveGeneration(await getServerDB(), { ...params, count: 1, modelType: 'video' });
+  return { prechargeResult: handles?.[0] };
 }

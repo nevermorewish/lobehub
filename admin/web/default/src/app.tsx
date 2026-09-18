@@ -21,6 +21,7 @@ import useSWR, { useSWRConfig } from 'swr';
 import { api, APIError } from './api';
 import { ErrorNotice, Field } from './components';
 import { AuditPage } from './pages/audit';
+import { LedgerPage, OrdersPage, PacksPage, WalletsPage } from './pages/billing';
 import { ConversationsPage } from './pages/conversations';
 import { KnowledgePage } from './pages/knowledge';
 import { PaymentsPage } from './pages/payments';
@@ -30,6 +31,10 @@ import { UsersPage } from './pages/users';
 import { styles } from './styles';
 
 const pages = {
+  wallets: WalletsPage,
+  orders: OrdersPage,
+  ledger: LedgerPage,
+  packs: PacksPage,
   users: UsersPage,
   conversations: ConversationsPage,
   knowledge: KnowledgePage,
@@ -39,6 +44,10 @@ const pages = {
   audit: AuditPage,
 };
 const icons = {
+  wallets: Wallet,
+  orders: CircleDollarSign,
+  ledger: History,
+  packs: Layers,
   users: Users,
   conversations: MessagesSquare,
   knowledge: BookOpen,
