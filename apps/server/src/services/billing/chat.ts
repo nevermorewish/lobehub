@@ -60,7 +60,9 @@ export async function billChat(
     JSON.stringify(payload.messages ?? []).length + JSON.stringify(payload.tools ?? []).length;
   const maxOutput = payload.max_tokens ?? 4096;
   if (!Number.isSafeInteger(maxOutput) || maxOutput < 1) {
-    throw AgentRuntimeError.createError(ChatErrorType.BadRequest, { message: 'Invalid output token limit' });
+    throw AgentRuntimeError.createError(ChatErrorType.BadRequest, {
+      message: 'Invalid output token limit',
+    });
   }
   const held = priceTokens(promptEstimate, maxOutput, rates);
   const account = await new BillingAccountModel(db, userId).createForUser({ currency: 'CNY' });
@@ -84,6 +86,9 @@ export async function billChat(
           requestId,
           userId,
           priceSnapshot: {
+            priceId: price.id,
+            modelType: 'chat',
+            unit: 'token',
             completionPerK: rates.completionPerK.toString(),
             promptPerK: rates.promptPerK.toString(),
             currency: 'CNY',
@@ -115,8 +120,15 @@ export async function billChat(
       // Preserve measured usage before settlement so a DB failure can be reconciled.
       if (success && measured) {
         priceTokens(prompt, completion, rates);
-        await db.update(usageRecords).set({ promptTokens: prompt, completionTokens: completion,
-          totalTokens: prompt + completion, settlementStatus: 'settle_pending' }).where(eq(usageRecords.id, record.id));
+        await db
+          .update(usageRecords)
+          .set({
+            promptTokens: prompt,
+            completionTokens: completion,
+            totalTokens: prompt + completion,
+            settlementStatus: 'settle_pending',
+          })
+          .where(eq(usageRecords.id, record.id));
       }
       await db.transaction(async (tx) => {
         const txWallet = new WalletModel(tx as unknown as LobeChatDatabase);
@@ -166,25 +178,28 @@ export async function billChat(
   };
   let response: Response;
   try {
-    response = await call({ ...payload, max_tokens: maxOutput }, {
-      ...options,
-      callback: {
-        ...options?.callback,
-        onUsage: async (data) => {
-          usage = data;
-          await options?.callback?.onUsage?.(data);
-        },
-        onFinal: async (data) => {
-          usage = data.usage ?? usage;
-          failed ||= !!data.error;
-          await options?.callback?.onFinal?.(data);
-        },
-        onError: async (error) => {
-          failed = true;
-          await options?.callback?.onError?.(error);
+    response = await call(
+      { ...payload, max_tokens: maxOutput },
+      {
+        ...options,
+        callback: {
+          ...options?.callback,
+          onUsage: async (data) => {
+            usage = data;
+            await options?.callback?.onUsage?.(data);
+          },
+          onFinal: async (data) => {
+            usage = data.usage ?? usage;
+            failed ||= !!data.error;
+            await options?.callback?.onFinal?.(data);
+          },
+          onError: async (error) => {
+            failed = true;
+            await options?.callback?.onError?.(error);
+          },
         },
       },
-    });
+    );
   } catch (error) {
     await finish(false);
     throw error;

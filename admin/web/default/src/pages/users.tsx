@@ -1,13 +1,26 @@
 import { Flexbox } from '@lobehub/ui';
-import { Button } from '@lobehub/ui/base-ui';
+import { Button, confirmModal } from '@lobehub/ui/base-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 
 import { api } from '../api';
-import { Badge, DataState, date, Editor, Field, Pager, Pick, Search, Toggle } from '../components';
+import {
+  Badge,
+  DataState,
+  date,
+  Editor,
+  ErrorNotice,
+  Field,
+  Pager,
+  Pick,
+  Search,
+  Toggle,
+} from '../components';
 import { styles } from '../styles';
 import type { Page, User } from '../types';
+import { Adjustment, type Wallet } from './billing';
 
 function UserEditor({
   user,
@@ -89,12 +102,20 @@ export function UsersPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [editing, setEditing] = useState<User>();
+  const [wallet, setWallet] = useState<Wallet>();
+  const [pending, setPending] = useState<string>();
+  const [actionError, setActionError] = useState<unknown>();
+  const [actionSuccess, setActionSuccess] = useState(false);
+  const navigate = useNavigate();
   const { data, error, isLoading, mutate } = useSWR(
     `/api/admin/users?page=${page}&search=${encodeURIComponent(search)}&status=${status}`,
     api<Page<User>>,
   );
   return (
     <>
+      {actionError !== undefined && <ErrorNotice error={actionError} />}
+      {actionSuccess && <p role="status">{t('sessionsRevoked')}</p>}
+      {wallet && <Adjustment close={() => setWallet(undefined)} refresh={mutate} wallet={wallet} />}
       {editing && (
         <UserEditor
           key={editing.id}
@@ -140,10 +161,19 @@ export function UsersPage() {
           retry={() => void mutate()}
         >
           <div className={styles.scroll}>
-            <table className={styles.table}>
+            <table className={styles.table} style={{ minWidth: 1120 }}>
               <thead>
                 <tr>
-                  {['users', 'role', 'status', 'lastActiveAt', 'actions'].map((key) => (
+                  {[
+                    'users',
+                    'role',
+                    'status',
+                    'billing.available',
+                    'billing.spent',
+                    'billing.requestCount',
+                    'lastActiveAt',
+                    'actions',
+                  ].map((key) => (
                     <th key={key}>{t(key)}</th>
                   ))}
                 </tr>
@@ -151,21 +181,129 @@ export function UsersPage() {
               <tbody>
                 {data?.items.map((user) => (
                   <tr key={user.id}>
-                    <td>
+                    <td style={{ minWidth: 180 }}>
                       <Flexbox gap={4}>
                         <strong>{user.fullName || user.username || user.email || user.id}</strong>
                         <span className={styles.muted}>{user.email ?? user.id}</span>
+                        <small className={styles.muted}>{user.id}</small>
                       </Flexbox>
                     </td>
-                    <td>{t(user.role === 'admin' ? 'admin' : 'user')}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {t(user.role === 'admin' ? 'admin' : 'user')}
+                    </td>
                     <td>
                       <Badge good={!user.banned}>{t(user.banned ? 'banned' : 'active')}</Badge>
                     </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {user.billingReady ? user.available : '—'}
+                      <small style={{ display: 'block' }}>
+                        {t('billing.reserved')}: {user.billingReady ? user.reserved : '—'}
+                      </small>
+                    </td>
+                    <td>{user.billingReady ? user.spent : '—'}</td>
+                    <td>{user.billingReady ? user.requestCount : '—'}</td>
                     <td className={styles.number}>{date(user.lastActiveAt)}</td>
                     <td>
-                      <Button disabled={!!editing} onClick={() => setEditing(user)}>
-                        {t('edit')}
-                      </Button>
+                      <Flexbox horizontal gap={8} style={{ minWidth: 240 }} wrap="wrap">
+                        <Button
+                          disabled={!!editing || !!wallet || !!pending}
+                          onClick={() => setEditing(user)}
+                        >
+                          {t('edit')}
+                        </Button>
+                        <Button
+                          disabled={!user.billingReady || !!editing || !!wallet || !!pending}
+                          onClick={async () => {
+                            setPending(user.id);
+                            setActionError(undefined);
+                            try {
+                              setWallet(
+                                await api<Wallet>(
+                                  `/api/admin/users/${encodeURIComponent(user.id)}/wallet`,
+                                  'POST',
+                                ),
+                              );
+                            } catch (failure) {
+                              setActionError(failure);
+                            } finally {
+                              setPending(undefined);
+                            }
+                          }}
+                        >
+                          {t('billing.adjust')}
+                        </Button>
+                        <Button
+                          onClick={() => navigate(`/ledger?user=${encodeURIComponent(user.id)}`)}
+                        >
+                          {t('ledger')}
+                        </Button>
+                        <Button
+                          onClick={() => navigate(`/orders?search=${encodeURIComponent(user.id)}`)}
+                        >
+                          {t('orders')}
+                        </Button>
+                        <Button
+                          disabled={!!pending}
+                          onClick={() =>
+                            confirmModal({
+                              title: t('revokeSessions'),
+                              content: t('revokeSessionsHint'),
+                              okText: t('revokeSessions'),
+                              cancelText: t('cancel'),
+                              onOk: async () => {
+                                setPending(user.id);
+                                setActionError(undefined);
+                                setActionSuccess(false);
+                                try {
+                                  await api(
+                                    `/api/admin/users/${encodeURIComponent(user.id)}/revoke-sessions`,
+                                    'POST',
+                                  );
+                                  setActionSuccess(true);
+                                } catch (failure) {
+                                  setActionError(failure);
+                                } finally {
+                                  setPending(undefined);
+                                }
+                              },
+                            })
+                          }
+                        >
+                          {t('revokeSessions')}
+                        </Button>
+                        <Button
+                          danger
+                          disabled={!!editing || !!wallet || !!pending}
+                          onClick={() =>
+                            confirmModal({
+                              title: t('deleteUser'),
+                              content: t('deleteUserHint', {
+                                name: user.fullName || user.email || user.id,
+                              }),
+                              okText: t('deleteUser'),
+                              cancelText: t('cancel'),
+                              onOk: async () => {
+                                setPending(user.id);
+                                setActionError(undefined);
+                                try {
+                                  await api(
+                                    `/api/admin/users/${encodeURIComponent(user.id)}`,
+                                    'DELETE',
+                                    { updatedAt: user.updatedAt },
+                                  );
+                                  await mutate();
+                                } catch (failure) {
+                                  setActionError(failure);
+                                } finally {
+                                  setPending(undefined);
+                                }
+                              },
+                            })
+                          }
+                        >
+                          {t('deleteUser')}
+                        </Button>
+                      </Flexbox>
                     </td>
                   </tr>
                 ))}

@@ -205,7 +205,7 @@ func TestUserUpdatesRevokeSessionsAndRejectStaleWrites(t *testing.T) {
 	}
 	page, err := s.Users(ctx, "%", "", 1, 25)
 	if err != nil || page.Total != 0 {
-		t.Fatal("search wildcard was not escaped")
+		t.Fatal("search wildcard was not escaped", err)
 	}
 }
 

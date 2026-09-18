@@ -27,13 +27,41 @@
 
 ## LobeHub 对接
 
+### 存储与系统设置
+
+管理后台现在使用独立页面路径：`/users`、`/conversations`、`/knowledge`、`/providers`、`/prices`、`/payments`、`/orders`、`/ledger`、`/packs`、`/audit`。新增 `/storage`（存储设置）、`/settings`（系统设置）和 `/deployments`（部署）。支持直接访问、刷新、浏览器前进/后退和未保存编辑保护。
+
+- **存储设置**：S3 Endpoint、内部 Endpoint、Bucket、Region、公开访问 URL、Access Key、Secret Key、路径风格、ACL 和预览链接有效期。凭据加密保存，管理接口不回显；编辑时留空保留原凭据。更换存储桶不会迁移旧文件。
+- **系统设置**：站点 URL (`APP_URL`)、内部站点 URL、SearXNG URL，以及视觉模型的 Base64 图片选项。`APP_URL` 必须为站点 origin（协议、主机、端口），用于登录回调与分享链接。
+- **生效方式**：保存写入 PostgreSQL `admin_settings`，并记录审计。Docker 启动器在启动 Next.js 和初始化认证/S3 客户端前，从受集成令牌保护的 `/internal/v1/settings` 读取配置。保存后执行 `docker compose restart lobe`；多副本部署需重启所有副本。管理后台会显示重启提示。
+- **优先级**：后台已保存的分组覆盖同组环境变量；清空可选字段也会清除对应旧环境变量。尚未保存的分组继续使用环境变量。数据库连接、密钥加密根密钥、集成令牌、后台自身的 `ADMIN_PUBLIC_URL` 和容器网络/网关地址仍保留为部署配置。
+- **运行边界**：此读取流程由仓库 Docker `startServer.js` 执行；直接运行 `bun run dev` / Next.js 或独立 Hono 服务仍使用该进程的环境变量。启用管理集成的 Docker 部署在配置服务不可用或鉴权失败时停止启动，避免带着旧凭据运行。
+
+**升级现有 Compose 部署**：先备份原来的 `APP_URL`、S3 和搜索配置；执行 `docker compose up -d --build admin`，在后台 `/storage` 和 `/settings` 填入原值并保存，然后执行 `docker compose up -d --build lobe`。新的 Compose 不再硬编码这些值，不能假定旧的 YAML 值会自动迁入数据库。旧 `.env` 中的同名配置在首次后台保存前仍可作为过渡。
+
+**首次部署**：先启动并配置 admin，再启动 lobe。SearXNG 的 Compose 内部地址可填 `http://searxng:8080`，站点内部地址可填 `http://lobe:3210`，站点访问地址填写浏览器实际使用的域名和端口。没有保存任何配置时，后台仍可独立访问。
+
+### 远程部署
+
+`/deployments` 配置 Linux IP、SSH 端口、用户名、密码、主机 SHA256 指纹、公开 GitHub 仓库、分支和服务器绝对目录。可读取指纹，核对服务器身份后保存；密码加密保存，留空保留。修改 IP 或端口会清空原指纹。
+
+服务器需提前安装 Git、Docker 和 Compose v2，并在代码目录内配置 `docker-compose/deploy/.env`。部署按钮需确认目标，随后在服务器执行 clone（首次）或 fetch + fast-forward、Compose 配置检查、`build --pull admin lobe` 和 `up -d --wait`。未提交的代码或分支/仓库不一致会中止操作，不强制覆盖本地文件。只支持公开 GitHub 仓库；私有仓库认证尚未接入。
+
+任务在服务器后台运行，最长 1 小时；日志和退出码位于 `/var/tmp/lobehub-admin-deployment-<id>`。后台重启后会通过 SSH 重新读取任务状态，数据库保存最近任务与配置快照，防止重复部署。日志显示最后 32 KiB。构建失败不执行容器更新；更新过程中失败可能已有部分容器更新，需查看日志处理，没有自动回滚。
+
+### 用户与扣费记录
+
+钱包功能整合到 `/users`：可用/冻结积分、累计消费和模型请求数，调账、资料/角色/封禁编辑、用户流水、订单、退出登录和删除。旧 `/wallets` 地址重定向到 `/users`。删除操作会永久封禁、撤销会话与 API Key、移出用户列表，保留用户身份关联和不可变财务记录；禁止删除最后一个有效管理员。
+
+`/ledger` 支持邮箱/用户/请求/流水/订单、模型、服务商、类型及时间筛选，汇总覆盖全部匹配记录。详情显示输入/输出 Token、请求 ID、历史单价和公式、预扣、最终消费、余额变动、操作人及价格版本。预扣和释放不计为消费；没有保留相关数据的历史记录显示空缺，不用当前价格冒充历史价格。
+
 LobeHub 设置 `ADMIN_SERVICE_URL=http://admin:3211` 和相同的 `ADMIN_INTEGRATION_TOKEN`。未设置服务地址时保持原有行为。
 
 - `/internal/v1/catalog` 提供服务商可用状态与有效模型配置，由 LobeHub `genServerAiProvidersConfig` 消费。
 - `/internal/v1/providers/:id` 仅通过内网 Bearer 认证提供运行时凭据，由 `initModelRuntimeFromDB` 消费。
 - 用户自行配置了凭据或 API 地址时使用完整的用户配置；不会将平台密钥拼接到用户提供的地址上。
 
-能力边界：本项目管理价格与支付配置，不提供积分钱包、调用扣费、支付下单或收款回调。保存这些配置不会自动启用资金流程。LobeHub 自动目录接入使用内置服务商 ID（如 `openai`）；自定义 ID 目前需要用户在 LobeHub 中添加同名服务商，不会自动进入全局服务商列表。
+能力边界：钱包、套餐、订单和流水管理依赖 LobeHub 商业计费表及相应服务，需先应用主应用数据库迁移；后台不会替代主应用的调用扣费、下单或收款回调。LobeHub 自动目录接入使用内置服务商 ID（如 `openai`）；自定义 ID 目前需要用户在 LobeHub 中添加同名服务商，不会自动进入全局服务商列表。
 
 ## 开发与检查
 
@@ -53,7 +81,9 @@ Go 的真实数据库测试使用 `ADMIN_TEST_DATABASE_URL`，每个测试创建
 
 ## 当前验证状态
 
-本地验收记录：https://app.lobehub.com/acceptance/e6cf8379-410a-47ab-b153-dd1daf379d14 。本轮 11 项用例均已提交所需证据，使用隔离样例数据库；验收范围和未验证部分见记录说明。
+设置、部署、用户整合及消费明细本轮验收：https://app.lobehub.com/acceptance/df7129ee-42ca-4d62-b648-b2d8a738481a 。7 项通过；“下月消费套餐”因生效/续费规则未明确而未实施。验证使用隔离数据库、真实 SSH/Git 和两个 Docker 样例服务，未执行完整主应用生产部署。
+
+此前后台基础功能验收：https://app.lobehub.com/acceptance/e6cf8379-410a-47ab-b153-dd1daf379d14 。以下为此前基础功能验证范围，不能替代本轮新增功能记录。
 
 - Go 编译、密码/密钥测试和 PostgreSQL 集成测试通过。
 - 独立前端 TypeScript、修改文件 ESLint 和 Docker 多阶段构建通过。Docker 构建会先检查前端类型。

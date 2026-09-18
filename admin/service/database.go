@@ -20,6 +20,7 @@ var (
 	ErrInvalid             = errors.New("invalid input")
 	ErrInsufficientCredits = errors.New("insufficient available credits")
 	ErrUnauthorized        = errors.New("invalid username or password")
+	ErrLastAdmin           = errors.New("the last active administrator cannot be deleted")
 )
 
 type Service struct {
@@ -71,7 +72,7 @@ func (s *Service) migrate() error {
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(742819321)").Error; err != nil {
 			return err
 		}
-		if err := tx.AutoMigrate(&model.Administrator{}, &model.Session{}, &model.Provider{}, &model.Price{}, &model.Payment{}, &model.Audit{}); err != nil {
+		if err := tx.AutoMigrate(&model.Administrator{}, &model.Session{}, &model.Provider{}, &model.Price{}, &model.Payment{}, &model.Audit{}, &model.Setting{}, &model.Deployment{}, &model.DeletedUser{}); err != nil {
 			return err
 		}
 		if err := tx.Exec("CREATE UNIQUE INDEX IF NOT EXISTS admin_price_one_active ON admin_model_prices (provider, model_id) WHERE is_active = true AND archived_at IS NULL").Error; err != nil {

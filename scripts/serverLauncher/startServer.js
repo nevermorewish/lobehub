@@ -244,6 +244,24 @@ const runServer = async () => {
 
 // Main execution block
 (async () => {
+  if (process.env.ADMIN_SERVICE_URL) {
+    const localSettingsPath = path.join(__dirname, '..', '_shared', 'loadAdminSettings.js');
+    // The Docker launcher is a CommonJS entry point.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { loadAdminSettings } = require(
+      existsSync(localSettingsPath)
+        ? localSettingsPath
+        : '/app/scripts/_shared/loadAdminSettings.js',
+    );
+    try {
+      await loadAdminSettings();
+    } catch {
+      console.error(
+        '❌ Admin settings could not be loaded. Check the admin service and integration token.',
+      );
+      process.exit(1);
+    }
+  }
   // Check for deprecated auth env vars first - fail fast if found
   checkDeprecatedAuth({ action: 'restart' });
   // Warn loudly when an upgraded Compose stack enables Gateway Mode without its .env settings

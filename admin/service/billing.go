@@ -60,32 +60,6 @@ func (s *Service) BillingOrders(ctx context.Context, search string, page, size i
 	return result, err
 }
 
-type BillingLedgerView struct {
-	ID               string    `json:"id"`
-	BillingAccountID string    `json:"billingAccountId"`
-	Kind             string    `json:"kind"`
-	Delta            string    `json:"delta"`
-	AvailableDelta   string    `json:"availableDelta"`
-	ReservedDelta    string    `json:"reservedDelta"`
-	BalanceAfter     string    `json:"balanceAfter"`
-	Reason           *string   `json:"reason"`
-	OrderID          *string   `json:"orderId"`
-	CreatedAt        time.Time `json:"createdAt"`
-}
-
-func (s *Service) BillingLedger(ctx context.Context, account string, page, size int) (model.Page[BillingLedgerView], error) {
-	result := model.Page[BillingLedgerView]{Items: []BillingLedgerView{}, Page: page, PageSize: size}
-	q := s.DB.WithContext(ctx).Table("ledger_entries")
-	if account != "" {
-		q = q.Where("billing_account_id = ?", account)
-	}
-	if err := q.Count(&result.Total).Error; err != nil {
-		return result, err
-	}
-	err := q.Select("id, billing_account_id, kind, delta::text, available_delta::text, reserved_delta::text, balance_after::text, reason, order_id, created_at").Order("created_at DESC, id").Limit(size).Offset((page - 1) * size).Scan(&result.Items).Error
-	return result, err
-}
-
 type AdjustmentInput struct {
 	Delta          string `json:"delta"`
 	Reason         string `json:"reason"`

@@ -5,14 +5,20 @@ export interface Page<T> {
   total: number;
 }
 export interface User {
+  available: string;
   banned: boolean;
   banReason: string | null;
+  billingAccountId: string | null;
+  billingReady: boolean;
   createdAt: string;
   email: string | null;
   fullName: string | null;
   id: string;
   lastActiveAt: string;
+  requestCount: string;
+  reserved: string;
   role: string | null;
+  spent: string;
   updatedAt: string;
   username: string | null;
 }
@@ -27,8 +33,6 @@ export interface Provider {
   sdkType: string;
 }
 export interface Price {
-  modelType: 'chat' | 'image' | 'video';
-  requestCreditsFlat: number;
   archivedAt: string | null;
   completionCreditsPerKToken: number;
   contextWindow: number;
@@ -38,9 +42,11 @@ export interface Price {
   id: string;
   isActive: boolean;
   modelId: string;
+  modelType: 'chat' | 'image' | 'video';
   note: string;
   promptCreditsPerKToken: number;
   provider: string;
+  requestCreditsFlat: number;
   vision: boolean;
 }
 export interface PaymentConfig {

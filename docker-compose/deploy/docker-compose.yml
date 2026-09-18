@@ -9,6 +9,8 @@ services:
     ports:
       - '3210:3210'
     depends_on:
+      admin:
+        condition: service_healthy
       postgresql:
         condition: service_healthy
       redis:
@@ -17,16 +19,9 @@ services:
       - 'KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}'
       - 'AUTH_SECRET=${AUTH_SECRET}'
       - 'JWKS_KEY=${JWKS_KEY}'
-      - 'APP_URL=http://106.55.12.78:3210'
       - 'DATABASE_URL=${DATABASE_URL}'
-      - 'S3_ENDPOINT=https://tos-s3-cn-beijing.volces.com'
-      - 'S3_BUCKET=huanxing'
-      - 'S3_ACCESS_KEY_ID=${RUSTFS_ACCESS_KEY}'
-      - 'S3_SECRET_ACCESS_KEY=${RUSTFS_SECRET_KEY}'
-      - 'S3_ENABLE_PATH_STYLE=1'
-      - 'LLM_VISION_IMAGE_USE_BASE64=1'
-      - 'S3_SET_ACL=0'
-      - 'SEARXNG_URL=http://searxng:8080'
+      # Storage, public/internal URLs and search URL are managed in the admin UI.
+      # Saved settings override legacy .env values when lobe starts.
       - 'REDIS_URL=redis://redis:6210'
       - 'REDIS_PREFIX=lobechat'
       - 'REDIS_TLS=0'

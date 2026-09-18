@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func seedBilling(t *testing.T, s *Service) {
@@ -115,5 +116,88 @@ func TestCreditPackRevisionsAndOrderSnapshot(t *testing.T) {
 	orders, err := s.BillingOrders(ctx, "LH-test", 1, 25)
 	if err != nil || len(orders.Items) != 1 || orders.Items[0].CreditGrant != "500" || orders.Items[0].AmountMinor != "990" {
 		t.Fatalf("order snapshot changed: %+v %v", orders, err)
+	}
+}
+
+func TestUserBillingDeletionPreservesFinancialHistory(t *testing.T) {
+	s := testService(t)
+	seedBilling(t, s)
+	ctx := context.Background()
+	if err := s.DB.Exec(`ALTER TABLE users ADD COLUMN username text,ADD COLUMN full_name text,ADD COLUMN avatar text,ADD COLUMN role text DEFAULT 'user',ADD COLUMN banned boolean DEFAULT false,ADD COLUMN ban_reason text,ADD COLUMN ban_expires timestamptz,ADD COLUMN created_at timestamptz DEFAULT now(),ADD COLUMN updated_at timestamptz DEFAULT now(),ADD COLUMN last_active_at timestamptz DEFAULT now();
+ INSERT INTO users(id,email,role) VALUES ('last-admin','admin@example.test','admin');
+ CREATE TABLE auth_sessions(id text,user_id text); CREATE TABLE nextauth_sessions(id text,user_id text); CREATE TABLE api_keys(id text,user_id text);
+ INSERT INTO auth_sessions VALUES('session','buyer');INSERT INTO api_keys VALUES('key','buyer');`).Error; err != nil {
+		t.Fatal(err)
+	}
+	wallet, err := s.UserWallet(ctx, "operator", "buyer")
+	if err != nil || wallet.ID != "account" {
+		t.Fatal("wallet initialization", err)
+	}
+	if _, err := s.AdjustWallet(ctx, "operator", wallet.ID, AdjustmentInput{Delta: "100", Reason: "test", IdempotencyKey: "11111111-1111-4111-8111-111111111119"}); err != nil {
+		t.Fatal(err)
+	}
+	users, err := s.Users(ctx, "buyer@example.test", "", 1, 25)
+	if err != nil || len(users.Items) != 1 || users.Items[0].Available != "100" {
+		t.Fatal("user wallet aggregate", err, users)
+	}
+	user := users.Items[0]
+	if err := s.DeleteUser(ctx, "operator", user.ID, user.UpdatedAt.Add(-time.Second)); !errors.Is(err, ErrConflict) {
+		t.Fatal("stale deletion accepted", err)
+	}
+	if err := s.DeleteUser(ctx, "operator", user.ID, user.UpdatedAt); err != nil {
+		t.Fatal(err)
+	}
+	users, err = s.Users(ctx, "buyer@example.test", "", 1, 25)
+	if err != nil || users.Total != 0 {
+		t.Fatal("deleted user still listed", err)
+	}
+	var count int64
+	for _, table := range []string{"auth_sessions", "api_keys"} {
+		s.DB.Table(table).Where("user_id=?", user.ID).Count(&count)
+		if count != 0 {
+			t.Fatal("credentials not revoked", table)
+		}
+	}
+	s.DB.Table("ledger_entries").Where("billing_account_id=?", wallet.ID).Count(&count)
+	if count != 1 {
+		t.Fatal("financial history lost")
+	}
+	var banned bool
+	s.DB.Raw("SELECT banned FROM users WHERE id=?", user.ID).Scan(&banned)
+	if !banned {
+		t.Fatal("deleted user can authenticate")
+	}
+	users, err = s.Users(ctx, "last-admin", "", 1, 25)
+	if err != nil || len(users.Items) != 1 {
+		t.Fatal("admin fixture", err)
+	}
+	if err := s.DeleteUser(ctx, "operator", "last-admin", users.Items[0].UpdatedAt); !errors.Is(err, ErrLastAdmin) {
+		t.Fatal("last administrator deleted", err)
+	}
+}
+
+func TestLedgerModelDetailsAndFilteredTotals(t *testing.T) {
+	s := testService(t)
+	seedBilling(t, s)
+	ctx := context.Background()
+	if err := s.DB.Exec(`INSERT INTO ledger_entries(id,billing_account_id,kind,delta,available_delta,reserved_delta,balance_after,idempotency_key,reason) VALUES
+ ('hold1','account','hold',0,-20,20,80,'hold:request-one','chat'),
+ ('debit1','account','debit',-8,12,-20,92,'debit:request-one','chat');
+ INSERT INTO usage_records(id,billing_account_id,user_id,request_id,model_id,provider,prompt_tokens,completion_tokens,total_tokens,credits_charged,settlement_status,price_snapshot,ledger_entry_id)
+ VALUES('usage1','account','buyer','request-one','test-chat','openai',1500,500,2000,8,'settled','{"promptPerK":"2","completionPerK":"10","heldCredits":"20","holdId":"hold1"}','debit1');
+ UPDATE ledger_entries SET usage_record_id='usage1' WHERE id='debit1';`).Error; err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.FilteredBillingLedger(ctx, LedgerFilter{User: "buyer", Model: "test-chat"}, 1, 1)
+	if err != nil || result.Total != 2 || len(result.Items) != 1 || result.Summary.Debited != "8" || result.Summary.TotalTokens != "2000" {
+		t.Fatal("filtered totals mismatch", err, result)
+	}
+	result, err = s.FilteredBillingLedger(ctx, LedgerFilter{Kind: "hold"}, 1, 25)
+	if err != nil || result.Total != 1 || result.Items[0].ModelID == nil || *result.Items[0].ModelID != "test-chat" || *result.Items[0].PromptRate != "2" {
+		t.Fatal("hold lost request detail", err, result)
+	}
+	result, err = s.FilteredBillingLedger(ctx, LedgerFilter{Provider: "other"}, 1, 25)
+	if err != nil || result.Total != 0 || result.Summary.Debited != "0" {
+		t.Fatal("provider filter mismatch", err, result)
 	}
 }

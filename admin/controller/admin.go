@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,6 +28,8 @@ func respond(c *gin.Context, data any, err error) {
 		return
 	}
 	switch {
+	case errors.Is(err, service.ErrLastAdmin):
+		Fail(c, 400, "last_admin", "The last active administrator cannot be deleted")
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		Fail(c, 404, "not_found", "Record not found")
 	case errors.Is(err, service.ErrConflict), errors.Is(err, gorm.ErrDuplicatedKey):
@@ -86,6 +89,22 @@ func (h *Controller) UpdateUser(c *gin.Context) {
 }
 func (h *Controller) Providers(c *gin.Context) {
 	data, err := h.Service.Providers(c.Request.Context())
+	respond(c, data, err)
+}
+func (h *Controller) DeleteUser(c *gin.Context) {
+	var input struct {
+		UpdatedAt time.Time `json:"updatedAt"`
+	}
+	if !bind(c, &input) {
+		return
+	}
+	respond(c, nil, h.Service.DeleteUser(c.Request.Context(), c.GetString("actor"), c.Param("id"), input.UpdatedAt))
+}
+func (h *Controller) RevokeUserSessions(c *gin.Context) {
+	respond(c, nil, h.Service.RevokeUserSessions(c.Request.Context(), c.GetString("actor"), c.Param("id")))
+}
+func (h *Controller) UserWallet(c *gin.Context) {
+	data, err := h.Service.UserWallet(c.Request.Context(), c.GetString("actor"), c.Param("id"))
 	respond(c, data, err)
 }
 func (h *Controller) SaveProvider(c *gin.Context) {

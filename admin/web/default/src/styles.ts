@@ -7,6 +7,7 @@ export const styles = createStaticStyles(({ css, cssVar }) => ({
     color: ${cssVar.colorText};
   `,
   sidebar: css`
+    overflow-y: auto;
     width: 240px;
     position: fixed;
     inset: 0 auto 0 0;

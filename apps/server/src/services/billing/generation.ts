@@ -40,7 +40,10 @@ export async function reserveGeneration(
   if (hasUserProviderConfiguration(config?.keyVaults ?? {})) return undefined;
   const catalog = await getAdminCatalog();
   const price = catalog?.prices.find(
-    (row) => row.provider === params.provider && row.modelId === params.model && row.modelType === params.modelType,
+    (row) =>
+      row.provider === params.provider &&
+      row.modelId === params.model &&
+      row.modelType === params.modelType,
   );
   if (!price)
     throw new TRPCError({
@@ -70,6 +73,8 @@ export async function reserveGeneration(
           requestId,
           userId: params.userId,
           priceSnapshot: {
+            priceId: price.id,
+            modelType: params.modelType,
             heldCredits: amount.toString(),
             holdId: held.ledger.id,
             unit: 'generation',

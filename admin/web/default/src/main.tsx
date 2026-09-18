@@ -1,9 +1,11 @@
 import './i18n';
 
 import { ConfigProvider, ThemeProvider } from '@lobehub/ui';
+import { ModalHost } from '@lobehub/ui/base-ui';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { SWRConfig } from 'swr';
 
 import { App } from './app';
@@ -13,6 +15,7 @@ function Root() {
   return (
     <ThemeProvider enableGlobalStyle appearance={dark ? 'dark' : 'light'}>
       <ConfigProvider motion={motion}>
+        <ModalHost />
         <SWRConfig value={{ revalidateOnFocus: false, shouldRetryOnError: false }}>
           <App
             dark={dark}
@@ -29,4 +32,5 @@ function Root() {
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element is missing');
-createRoot(container).render(<Root />);
+const router = createBrowserRouter([{ path: '*', element: <Root /> }]);
+createRoot(container).render(<RouterProvider router={router} />);

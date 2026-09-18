@@ -3,11 +3,14 @@ import { Button } from '@lobehub/ui/base-ui';
 import {
   BookOpen,
   CircleDollarSign,
+  HardDrive,
   History,
   Layers,
   LogOut,
   MessagesSquare,
   Moon,
+  Rocket,
+  Settings,
   Shield,
   Sun,
   Users,
@@ -16,22 +19,25 @@ import {
 import type { FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Navigate, useBlocker, useLocation, useNavigate } from 'react-router-dom';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { api, APIError } from './api';
 import { ErrorNotice, Field } from './components';
 import { AuditPage } from './pages/audit';
-import { LedgerPage, OrdersPage, PacksPage, WalletsPage } from './pages/billing';
+import { OrdersPage, PacksPage } from './pages/billing';
 import { ConversationsPage } from './pages/conversations';
+import { DeploymentsPage } from './pages/deployments';
 import { KnowledgePage } from './pages/knowledge';
+import { LedgerPage } from './pages/ledger';
 import { PaymentsPage } from './pages/payments';
 import { PricesPage } from './pages/prices';
 import { ProvidersPage } from './pages/providers';
+import { StoragePage, SystemSettingsPage } from './pages/settings';
 import { UsersPage } from './pages/users';
 import { styles } from './styles';
 
 const pages = {
-  wallets: WalletsPage,
   orders: OrdersPage,
   ledger: LedgerPage,
   packs: PacksPage,
@@ -42,9 +48,11 @@ const pages = {
   prices: PricesPage,
   payments: PaymentsPage,
   audit: AuditPage,
+  storage: StoragePage,
+  settings: SystemSettingsPage,
+  deployments: DeploymentsPage,
 };
 const icons = {
-  wallets: Wallet,
   orders: CircleDollarSign,
   ledger: History,
   packs: Layers,
@@ -55,6 +63,9 @@ const icons = {
   prices: CircleDollarSign,
   payments: Wallet,
   audit: History,
+  storage: HardDrive,
+  settings: Settings,
+  deployments: Rocket,
 };
 type Section = keyof typeof pages;
 
@@ -111,7 +122,17 @@ function Login({ refresh }: { refresh: () => Promise<unknown> }) {
 export function App({ dark, setDark }: { dark: boolean; setDark: (value: boolean) => void }) {
   const { t, i18n } = useTranslation();
   const { mutate: mutateAll } = useSWRConfig();
-  const [section, setSection] = useState<Section>('users');
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const section = pathname.replace(/^\//, '').replace(/\/$/, '') as Section;
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      currentLocation.pathname !== nextLocation.pathname &&
+      !window.dispatchEvent(new Event('admin:navigate', { cancelable: true })),
+  );
+  useEffect(() => {
+    if (blocker.state === 'blocked') blocker.reset();
+  }, [blocker]);
   const [actionError, setActionError] = useState<unknown>();
   const { data, error, isLoading, mutate } = useSWR('/api/auth/me', api<{ username: string }>, {
     shouldRetryOnError: false,
@@ -137,7 +158,8 @@ export function App({ dark, setDark }: { dark: boolean; setDark: (value: boolean
         <ErrorNotice error={error} retry={() => void mutate()} />
       </div>
     );
-  const PageComponent = pages[section];
+  if (pathname === '/' || pathname === '/wallets') return <Navigate replace to="/users" />;
+  const PageComponent = Object.hasOwn(pages, section) ? pages[section] : undefined;
   const logout = async () => {
     if (!window.dispatchEvent(new Event('admin:navigate', { cancelable: true }))) return;
     try {
@@ -164,15 +186,9 @@ export function App({ dark, setDark }: { dark: boolean; setDark: (value: boolean
               icon={icons[key]}
               key={key}
               type={section === key ? 'primary' : 'text'}
-              onClick={() => {
-                if (
-                  key === section ||
-                  window.dispatchEvent(new Event('admin:navigate', { cancelable: true }))
-                )
-                  setSection(key);
-              }}
+              onClick={() => navigate(`/${key}`)}
             >
-              {t(key)}
+              {t(key === 'storage' ? 'storageSettings' : key)}
             </Button>
           ))}
         </nav>
@@ -202,11 +218,23 @@ export function App({ dark, setDark }: { dark: boolean; setDark: (value: boolean
             </Flexbox>
           </Flexbox>
           <header className={styles.header}>
-            <h1>{t(section)}</h1>
-            <p>{t(`${section}Hint`)}</p>
+            <h1>
+              {t(
+                PageComponent
+                  ? section === 'storage'
+                    ? 'storageSettings'
+                    : section
+                  : 'pageNotFound',
+              )}
+            </h1>
+            {PageComponent && <p>{t(`${section}Hint`)}</p>}
           </header>
           {actionError !== undefined && <ErrorNotice error={actionError} />}
-          <PageComponent />
+          {PageComponent ? (
+            <PageComponent />
+          ) : (
+            <Button onClick={() => navigate('/users')}>{t('users')}</Button>
+          )}
         </Flexbox>
       </main>
     </div>

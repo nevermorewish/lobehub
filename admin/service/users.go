@@ -22,9 +22,19 @@ type UserUpdate struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func (s *Service) Users(ctx context.Context, search, status string, page, size int) (model.Page[model.User], error) {
-	result := model.Page[model.User]{Items: []model.User{}, Page: page, PageSize: size}
-	q := s.DB.WithContext(ctx).Model(&model.User{})
+type UserView struct {
+	model.User
+	BillingReady     bool    `json:"billingReady"`
+	BillingAccountID *string `json:"billingAccountId"`
+	Available        string  `json:"available"`
+	Reserved         string  `json:"reserved"`
+	Spent            string  `json:"spent"`
+	RequestCount     string  `json:"requestCount"`
+}
+
+func (s *Service) Users(ctx context.Context, search, status string, page, size int) (model.Page[UserView], error) {
+	result := model.Page[UserView]{Items: []UserView{}, Page: page, PageSize: size}
+	q := s.DB.WithContext(ctx).Model(&model.User{}).Where("NOT EXISTS (SELECT 1 FROM admin_deleted_users d WHERE d.user_id = users.id)")
 	if search != "" {
 		pattern := "%" + strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(search) + "%"
 		q = q.Where("email ILIKE ? OR username ILIKE ? OR full_name ILIKE ? OR id = ?", pattern, pattern, pattern, search)
@@ -37,7 +47,40 @@ func (s *Service) Users(ctx context.Context, search, status string, page, size i
 	if err := q.Count(&result.Total).Error; err != nil {
 		return result, err
 	}
-	err := q.Order("created_at DESC, id ASC").Limit(size).Offset((page - 1) * size).Find(&result.Items).Error
+	err := q.Select("users.*").Order("created_at DESC, id ASC").Limit(size).Offset((page - 1) * size).Find(&result.Items).Error
+	if err != nil || len(result.Items) == 0 {
+		return result, err
+	}
+	if s.DB.Migrator().HasTable("billing_accounts") {
+		ids := make([]string, 0, len(result.Items))
+		for _, user := range result.Items {
+			ids = append(ids, user.ID)
+		}
+		var balances []struct {
+			UserID                                   string
+			BillingAccountID                         *string
+			Available, Reserved, Spent, RequestCount string
+		}
+		err = s.DB.WithContext(ctx).Raw(`SELECT u.id AS user_id,b.id AS billing_account_id,COALESCE(w.available,0)::text AS available,COALESCE(w.reserved,0)::text AS reserved,
+ (SELECT COALESCE(sum(credits_charged),0)::text FROM usage_records WHERE user_id=u.id) AS spent,
+ (SELECT count(*)::text FROM usage_records WHERE user_id=u.id) AS request_count
+ FROM users u LEFT JOIN billing_accounts b ON b.user_id=u.id LEFT JOIN wallets w ON w.billing_account_id=b.id WHERE u.id IN ?`, ids).Scan(&balances).Error
+		if err != nil {
+			return result, err
+		}
+		for i := range result.Items {
+			for _, b := range balances {
+				if b.UserID == result.Items[i].ID {
+					result.Items[i].BillingReady = true
+					result.Items[i].BillingAccountID = b.BillingAccountID
+					result.Items[i].Available = b.Available
+					result.Items[i].Reserved = b.Reserved
+					result.Items[i].Spent = b.Spent
+					result.Items[i].RequestCount = b.RequestCount
+				}
+			}
+		}
+	}
 	return result, err
 }
 
@@ -76,6 +119,13 @@ func (s *Service) UpdateUser(ctx context.Context, actor, id string, input UserUp
 			return err
 		}
 		if !result.UpdatedAt.Equal(input.UpdatedAt) {
+			return ErrConflict
+		}
+		var deleted int64
+		if err := tx.Model(&model.DeletedUser{}).Where("user_id = ?", id).Count(&deleted).Error; err != nil {
+			return err
+		}
+		if deleted > 0 {
 			return ErrConflict
 		}
 		if result.Role != nil && *result.Role == "admin" && !result.Banned && (input.Role != "admin" || input.Banned) {
