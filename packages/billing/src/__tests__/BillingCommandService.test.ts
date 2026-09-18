@@ -33,13 +33,15 @@ const mockCredit = vi.fn();
 const mockFindByBillingAccountId = vi.fn();
 
 vi.mock('@lobechat/database', () => ({
-  WalletModel: vi.fn().mockImplementation(() => ({
-    hold: mockHold,
-    settle: mockSettle,
-    release: mockRelease,
-    credit: mockCredit,
-    findByBillingAccountId: mockFindByBillingAccountId,
-  })),
+  WalletModel: vi.fn().mockImplementation(function () {
+    return {
+      hold: mockHold,
+      settle: mockSettle,
+      release: mockRelease,
+      credit: mockCredit,
+      findByBillingAccountId: mockFindByBillingAccountId,
+    };
+  }),
 }));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -66,11 +68,27 @@ function makeHoldCmd(overrides?: Partial<HoldCommand>): HoldCommand {
 }
 
 function makeLedger(id: string) {
-  return { id, billingAccountId: BAC, kind: 'hold', delta: -100n, balanceAfter: 0n, idempotencyKey: 'k', createdAt: new Date() };
+  return {
+    id,
+    billingAccountId: BAC,
+    kind: 'hold',
+    delta: -100n,
+    balanceAfter: 0n,
+    idempotencyKey: 'k',
+    createdAt: new Date(),
+  };
 }
 
 function makeWallet(available: bigint, reserved = 0n) {
-  return { id: 'wal_1', billingAccountId: BAC, available, reserved, version: 1, createdAt: new Date(), updatedAt: new Date() };
+  return {
+    id: 'wal_1',
+    billingAccountId: BAC,
+    available,
+    reserved,
+    version: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 // ─── tests ────────────────────────────────────────────────────────────────────
@@ -91,7 +109,9 @@ describe('hold()', () => {
   });
 
   it('throws PRECONDITION_FAILED when balance is insufficient', async () => {
-    mockHold.mockRejectedValueOnce(new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Insufficient balance' }));
+    mockHold.mockRejectedValueOnce(
+      new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Insufficient balance' }),
+    );
     await expect(svc.hold(makeHoldCmd())).rejects.toMatchObject({ code: 'PRECONDITION_FAILED' });
   });
 
@@ -103,7 +123,9 @@ describe('hold()', () => {
   });
 
   it('boundary+1: hold for one credit over balance throws PRECONDITION_FAILED', async () => {
-    mockHold.mockRejectedValueOnce(new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Insufficient balance' }));
+    mockHold.mockRejectedValueOnce(
+      new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Insufficient balance' }),
+    );
     await expect(svc.hold(makeHoldCmd({ estimatedCredits: 101n }))).rejects.toMatchObject({
       code: 'PRECONDITION_FAILED',
     });
@@ -149,7 +171,14 @@ describe('settle()', () => {
       holdLedgerEntryId: 'led_1',
       actualCredits: 80n,
       heldCredits: 100n,
-      usage: { requestId: REQ, modelId: 'gpt-4o', provider: 'openai', promptTokens: 50, completionTokens: 30, totalTokens: 80 },
+      usage: {
+        requestId: REQ,
+        modelId: 'gpt-4o',
+        provider: 'openai',
+        promptTokens: 50,
+        completionTokens: 30,
+        totalTokens: 80,
+      },
     });
 
     expect(result.debitLedgerEntryId).toBe('led_debit');
@@ -170,18 +199,39 @@ describe('settle()', () => {
       holdLedgerEntryId: 'led_1',
       actualCredits: 100n,
       heldCredits: 100n,
-      usage: { requestId: REQ, modelId: 'gpt-4o', provider: 'openai', promptTokens: 60, completionTokens: 40, totalTokens: 100 },
+      usage: {
+        requestId: REQ,
+        modelId: 'gpt-4o',
+        provider: 'openai',
+        promptTokens: 60,
+        completionTokens: 40,
+        totalTokens: 100,
+      },
     });
 
     expect(result.releaseLedgerEntryId).toBeNull();
   });
 
   it('uses deterministic debit/release idempotency keys', async () => {
-    mockSettle.mockResolvedValueOnce({ wallet: makeWallet(0n), debitEntry: { id: 'd' }, releaseEntry: null });
+    mockSettle.mockResolvedValueOnce({
+      wallet: makeWallet(0n),
+      debitEntry: { id: 'd' },
+      releaseEntry: null,
+    });
     await svc.settle({
-      billingAccountId: BAC, requestId: REQ, holdLedgerEntryId: 'x',
-      actualCredits: 10n, heldCredits: 10n,
-      usage: { requestId: REQ, modelId: 'm', provider: 'p', promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+      billingAccountId: BAC,
+      requestId: REQ,
+      holdLedgerEntryId: 'x',
+      actualCredits: 10n,
+      heldCredits: 10n,
+      usage: {
+        requestId: REQ,
+        modelId: 'm',
+        provider: 'p',
+        promptTokens: 5,
+        completionTokens: 5,
+        totalTokens: 10,
+      },
     });
     const call = mockSettle.mock.calls[0][0];
     expect(call.debitIdempotencyKey).toBe(`billing:debit:${BAC}:${REQ}`);
@@ -206,7 +256,13 @@ describe('release()', () => {
 
   it('uses deterministic release idempotency key', async () => {
     mockRelease.mockResolvedValueOnce({ wallet: makeWallet(0n), ledger: { id: 'lr' } });
-    await svc.release({ billingAccountId: BAC, requestId: REQ, holdLedgerEntryId: 'x', heldCredits: 50n, reason: 'err' });
+    await svc.release({
+      billingAccountId: BAC,
+      requestId: REQ,
+      holdLedgerEntryId: 'x',
+      heldCredits: 50n,
+      reason: 'err',
+    });
     const call = mockRelease.mock.calls[0][0];
     expect(call.idempotencyKey).toBe(`billing:release:${BAC}:${REQ}`);
   });
@@ -216,8 +272,20 @@ describe('release()', () => {
       .mockResolvedValueOnce({ wallet: makeWallet(50n), ledger: { id: 'lr_1' } })
       .mockResolvedValueOnce({ wallet: makeWallet(50n), ledger: { id: 'lr_1' } });
 
-    const r1 = await svc.release({ billingAccountId: BAC, requestId: REQ, holdLedgerEntryId: 'x', heldCredits: 50n, reason: '' });
-    const r2 = await svc.release({ billingAccountId: BAC, requestId: REQ, holdLedgerEntryId: 'x', heldCredits: 50n, reason: '' });
+    const r1 = await svc.release({
+      billingAccountId: BAC,
+      requestId: REQ,
+      holdLedgerEntryId: 'x',
+      heldCredits: 50n,
+      reason: '',
+    });
+    const r2 = await svc.release({
+      billingAccountId: BAC,
+      requestId: REQ,
+      holdLedgerEntryId: 'x',
+      heldCredits: 50n,
+      reason: '',
+    });
     expect(r1.releaseLedgerEntryId).toBe(r2.releaseLedgerEntryId);
   });
 });
@@ -263,8 +331,18 @@ describe('credit()', () => {
       .mockResolvedValueOnce({ wallet: makeWallet(500n), ledger })
       .mockResolvedValueOnce({ wallet: makeWallet(500n), ledger });
 
-    const r1 = await svc.credit({ billingAccountId: BAC, credits: 500n, orderId: 'ord_1', idempotencyKey: 'k' });
-    const r2 = await svc.credit({ billingAccountId: BAC, credits: 500n, orderId: 'ord_1', idempotencyKey: 'k' });
+    const r1 = await svc.credit({
+      billingAccountId: BAC,
+      credits: 500n,
+      orderId: 'ord_1',
+      idempotencyKey: 'k',
+    });
+    const r2 = await svc.credit({
+      billingAccountId: BAC,
+      credits: 500n,
+      orderId: 'ord_1',
+      idempotencyKey: 'k',
+    });
     expect(r1.ledgerEntryId).toBe(r2.ledgerEntryId);
     expect(r1.availableAfter).toBe(500n);
   });
@@ -279,7 +357,9 @@ describe('getAvailableBalance()', () => {
 
   it('throws NOT_FOUND for unknown billing account', async () => {
     mockFindByBillingAccountId.mockResolvedValueOnce(undefined);
-    await expect(svc.getAvailableBalance('bac_unknown')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(svc.getAvailableBalance('bac_unknown')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });
 
@@ -288,7 +368,9 @@ describe('concurrent hold simulation', () => {
     // Simulate one success and one version-conflict CONFLICT error
     mockHold
       .mockResolvedValueOnce({ wallet: makeWallet(0n), ledger: makeLedger('led_c1') })
-      .mockRejectedValueOnce(new TRPCError({ code: 'CONFLICT', message: 'Wallet version conflict; please retry' }));
+      .mockRejectedValueOnce(
+        new TRPCError({ code: 'CONFLICT', message: 'Wallet version conflict; please retry' }),
+      );
 
     const results = await Promise.allSettled([
       svc.hold(makeHoldCmd({ requestId: 'req-c1' })),

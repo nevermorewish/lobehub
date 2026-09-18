@@ -107,7 +107,14 @@ services:
       - './data:/var/lib/postgresql/data'
     # Keep the image's default preload list: its first-start bootstrap creates the pg_cron
     # extension and aborts initialization when pg_cron is missing from this list.
-    command: ['postgres', '-p', '5200', '-c', 'shared_preload_libraries=pg_search,pg_cron,pg_stat_statements']
+    command:
+      [
+        'postgres',
+        '-p',
+        '5200',
+        '-c',
+        'shared_preload_libraries=pg_search,pg_cron,pg_stat_statements',
+      ]
     environment:
       - 'POSTGRES_DB=lobechat'
       - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'

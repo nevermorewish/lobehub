@@ -14,7 +14,7 @@ func seedBilling(t *testing.T, s *Service) {
 	if err := s.DB.Exec("CREATE TABLE users (id text PRIMARY KEY,email text); INSERT INTO users VALUES ('buyer','buyer@example.test');").Error; err != nil {
 		t.Fatal(err)
 	}
-	migration, err := os.ReadFile("../../packages/database/migrations/0161_commercial_billing.sql")
+	migration, err := os.ReadFile("../../packages/database/migrations/0166_commercial_billing.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

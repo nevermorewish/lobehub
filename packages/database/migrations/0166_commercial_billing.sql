@@ -152,41 +152,59 @@ CREATE TABLE IF NOT EXISTS "webhook_events" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "billing_accounts" DROP CONSTRAINT IF EXISTS "billing_accounts_user_id_users_id_fk";--> statement-breakpoint
+ALTER TABLE "billing_accounts" DROP CONSTRAINT IF EXISTS "billing_accounts_user_id_users_id_fk";
+--> statement-breakpoint
 ALTER TABLE "billing_accounts" ADD CONSTRAINT "billing_accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_billing_account_id_billing_accounts_id_fk";--> statement-breakpoint
+ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_billing_account_id_billing_accounts_id_fk";
+--> statement-breakpoint
 ALTER TABLE "ledger_entries" ADD CONSTRAINT "ledger_entries_billing_account_id_billing_accounts_id_fk" FOREIGN KEY ("billing_account_id") REFERENCES "public"."billing_accounts"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_order_id_orders_id_fk";--> statement-breakpoint
+ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_order_id_orders_id_fk";
+--> statement-breakpoint
 ALTER TABLE "ledger_entries" ADD CONSTRAINT "ledger_entries_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_operator_user_id_users_id_fk";--> statement-breakpoint
+ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_operator_user_id_users_id_fk";
+--> statement-breakpoint
 ALTER TABLE "ledger_entries" ADD CONSTRAINT "ledger_entries_operator_user_id_users_id_fk" FOREIGN KEY ("operator_user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_billing_account_id_billing_accounts_id_fk";--> statement-breakpoint
+ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_billing_account_id_billing_accounts_id_fk";
+--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_billing_account_id_billing_accounts_id_fk" FOREIGN KEY ("billing_account_id") REFERENCES "public"."billing_accounts"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_user_id_users_id_fk";--> statement-breakpoint
+ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_user_id_users_id_fk";
+--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_plan_price_id_plan_prices_id_fk";--> statement-breakpoint
+ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "orders_plan_price_id_plan_prices_id_fk";
+--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_plan_price_id_plan_prices_id_fk" FOREIGN KEY ("plan_price_id") REFERENCES "public"."plan_prices"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "payment_attempts" DROP CONSTRAINT IF EXISTS "payment_attempts_order_id_orders_id_fk";--> statement-breakpoint
+ALTER TABLE "payment_attempts" DROP CONSTRAINT IF EXISTS "payment_attempts_order_id_orders_id_fk";
+--> statement-breakpoint
 ALTER TABLE "payment_attempts" ADD CONSTRAINT "payment_attempts_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "plan_prices" DROP CONSTRAINT IF EXISTS "plan_prices_plan_id_plans_id_fk";--> statement-breakpoint
+ALTER TABLE "plan_prices" DROP CONSTRAINT IF EXISTS "plan_prices_plan_id_plans_id_fk";
+--> statement-breakpoint
 ALTER TABLE "plan_prices" ADD CONSTRAINT "plan_prices_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_billing_account_id_billing_accounts_id_fk";--> statement-breakpoint
+ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_billing_account_id_billing_accounts_id_fk";
+--> statement-breakpoint
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_billing_account_id_billing_accounts_id_fk" FOREIGN KEY ("billing_account_id") REFERENCES "public"."billing_accounts"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_plan_id_plans_id_fk";--> statement-breakpoint
+ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_plan_id_plans_id_fk";
+--> statement-breakpoint
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_plan_price_id_plan_prices_id_fk";--> statement-breakpoint
+ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_plan_price_id_plan_prices_id_fk";
+--> statement-breakpoint
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_plan_price_id_plan_prices_id_fk" FOREIGN KEY ("plan_price_id") REFERENCES "public"."plan_prices"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_billing_account_id_billing_accounts_id_fk";--> statement-breakpoint
+ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_billing_account_id_billing_accounts_id_fk";
+--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_billing_account_id_billing_accounts_id_fk" FOREIGN KEY ("billing_account_id") REFERENCES "public"."billing_accounts"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_user_id_users_id_fk";--> statement-breakpoint
+ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_user_id_users_id_fk";
+--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_plan_price_id_plan_prices_id_fk";--> statement-breakpoint
+ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_plan_price_id_plan_prices_id_fk";
+--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_plan_price_id_plan_prices_id_fk" FOREIGN KEY ("plan_price_id") REFERENCES "public"."plan_prices"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_ledger_entry_id_ledger_entries_id_fk";--> statement-breakpoint
+ALTER TABLE "usage_records" DROP CONSTRAINT IF EXISTS "usage_records_ledger_entry_id_ledger_entries_id_fk";
+--> statement-breakpoint
 ALTER TABLE "usage_records" ADD CONSTRAINT "usage_records_ledger_entry_id_ledger_entries_id_fk" FOREIGN KEY ("ledger_entry_id") REFERENCES "public"."ledger_entries"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wallets" DROP CONSTRAINT IF EXISTS "wallets_billing_account_id_billing_accounts_id_fk";--> statement-breakpoint
+ALTER TABLE "wallets" DROP CONSTRAINT IF EXISTS "wallets_billing_account_id_billing_accounts_id_fk";
+--> statement-breakpoint
 ALTER TABLE "wallets" ADD CONSTRAINT "wallets_billing_account_id_billing_accounts_id_fk" FOREIGN KEY ("billing_account_id") REFERENCES "public"."billing_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "webhook_events" DROP CONSTRAINT IF EXISTS "webhook_events_order_id_orders_id_fk";--> statement-breakpoint
+ALTER TABLE "webhook_events" DROP CONSTRAINT IF EXISTS "webhook_events_order_id_orders_id_fk";
+--> statement-breakpoint
 ALTER TABLE "webhook_events" ADD CONSTRAINT "webhook_events_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "billing_accounts_user_id_unique" ON "billing_accounts" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "billing_accounts_status_idx" ON "billing_accounts" USING btree ("status");--> statement-breakpoint
