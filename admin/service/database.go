@@ -79,6 +79,9 @@ func (s *Service) migrate() error {
 			return err
 		}
 		// Bootstrap once. Changing the environment does not silently reset an existing account.
+		if err := tx.Exec("CREATE SEQUENCE IF NOT EXISTS admin_provider_id_seq").Error; err != nil {
+			return err
+		}
 		return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.Administrator{Username: s.Config.Username, PasswordHash: string(s.dummyHash)}).Error
 	})
 }

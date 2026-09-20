@@ -251,5 +251,14 @@
   "vision": "视觉理解",
   "wallets": "积分钱包",
   "walletsHint": "查看用户的可用与预留积分，按原因调账并保留审计记录。",
-  "webhookSecret": "Webhook 签名密钥"
+  "webhookSecret": "Webhook 签名密钥",
+  "providerAutoIdHint": "保存后自动生成数字 ID。",
+  "fetchProviderModels": "拉取服务商模型",
+  "fetchProviderModelsHint": "使用后台已保存的凭据拉取。选择模型，核对能力与价格后保存启用，才会展示到前端；也支持手动填写模型 ID。",
+  "selectFetchedModel": "选择拉取的模型",
+  "error.provider_credentials": "服务商凭据校验失败，请检查后台保存的 API Key 及其权限。",
+  "error.provider_endpoint": "模型接口返回错误，请检查服务商 API 地址。",
+  "error.provider_unavailable": "连接服务商失败或超时，请检查网络后重试。",
+  "error.provider_models_unsupported": "此 SDK 暂未接入模型拉取，请手动填写模型 ID。",
+  "error.provider_models_invalid": "服务商返回的模型列表格式异常或超出限制。"
 }

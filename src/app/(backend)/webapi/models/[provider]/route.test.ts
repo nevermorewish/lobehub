@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { auth } from '@/auth';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
+import { getAdminProviderModels } from '@/server/services/adminManagement';
 
 import { GET } from './route';
 
@@ -24,10 +25,12 @@ vi.mock('@/auth', () => ({
 vi.mock('@/server/modules/ModelRuntime', () => ({
   initModelRuntimeFromDB: vi.fn(),
 }));
+vi.mock('@/server/services/adminManagement', () => ({ getAdminProviderModels: vi.fn() }));
 
 let request: Request;
 
 beforeEach(() => {
+  vi.mocked(getAdminProviderModels).mockResolvedValue(undefined);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 
   request = new Request(new URL('https://test.com'), {
@@ -47,6 +50,20 @@ afterEach(() => {
 });
 
 describe('GET handler', () => {
+  it('returns only managed models without requesting upstream credentials', async () => {
+    vi.mocked(getAdminProviderModels).mockResolvedValue([
+      { id: 'managed', type: 'chat', enabled: true },
+    ]);
+    const response = await GET(request, { params: Promise.resolve({ provider: '1' }) });
+    expect(await response.json()).toEqual([{ id: 'managed', type: 'chat', enabled: true }]);
+    expect(initModelRuntimeFromDB).not.toHaveBeenCalled();
+  });
+  it('keeps disabled or unconfigured managed providers empty', async () => {
+    vi.mocked(getAdminProviderModels).mockResolvedValue([]);
+    const response = await GET(request, { params: Promise.resolve({ provider: 'openai' }) });
+    expect(await response.json()).toEqual([]);
+    expect(initModelRuntimeFromDB).not.toHaveBeenCalled();
+  });
   describe('error handling', () => {
     it('should return the thrown error message without exposing stack trace', async () => {
       const mockParams = Promise.resolve({ provider: 'google' });

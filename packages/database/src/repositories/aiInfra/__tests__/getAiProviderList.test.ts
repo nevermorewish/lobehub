@@ -26,6 +26,26 @@ beforeEach(() => {
 
 describe('AiInfraRepos', () => {
   describe('getAiProviderList', () => {
+    it('publishes numeric managed providers without user-created provider rows', async () => {
+      const managed = new AiInfraRepos(serverDB, userId, {
+        openai: { adminManaged: true, enabled: false, serverModelLists: [] },
+        '1': {
+          adminManaged: true,
+          enabled: true,
+          name: 'Managed',
+          sdkType: 'openai',
+          serverModelLists: [{ id: 'managed-model', type: 'chat', enabled: true }],
+        },
+      });
+      expect(await managed.getAiProviderList()).toEqual([
+        { id: '1', name: 'Managed', enabled: true, source: 'builtin' },
+      ]);
+      expect(await managed.getEnabledModels(false)).toMatchObject([
+        { id: 'managed-model', providerId: '1', enabled: true },
+      ]);
+      expect(await managed.getAiProviderModelList('openai')).toEqual([]);
+      expect(await managed.getAiProviderModelList('not-configured')).toEqual([]);
+    });
     it('should merge builtin and user providers correctly', async () => {
       const mockUserProviders = [
         { id: 'openai', enabled: true, name: 'Custom OpenAI' },

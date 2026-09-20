@@ -1,0 +1,38 @@
+# Use together with docker-compose.yml for local Windows/Docker Desktop deployment.
+services:
+  lobe:
+    image: lobehub:local
+    build:
+      args:
+        # Avoid rseq/fork lock contention observed in the Docker Desktop WSL kernel.
+        GLIBC_TUNABLES: glibc.pthread.rseq=0
+        RAYON_NUM_THREADS: '1'
+        BUILD_CPUSET: '0'
+    environment:
+      # Unset the image's empty URL default when no S3 endpoint is configured.
+      S3_ENDPOINT:
+    ports: !override
+      - '127.0.0.1:3210:3210'
+    healthcheck:
+      test:
+        - CMD
+        - /bin/node
+        - -e
+        - "fetch('http://127.0.0.1:3210/', {signal: AbortSignal.timeout(8000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      start_period: 180s
+      retries: 5
+  gateway:
+    ports: !override
+      - '127.0.0.1:8787:8787'
+      - '127.0.0.1:8788:8788'
+  postgresql:
+    ports: !reset []
+    volumes: !override
+      - postgres_local:/var/lib/postgresql/data
+  redis:
+    ports: !reset []
+
+volumes:
+  postgres_local:

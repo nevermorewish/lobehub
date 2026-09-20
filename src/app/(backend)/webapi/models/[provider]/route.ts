@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 
 import { checkAuth } from '@/app/(backend)/middleware/auth';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
+import { getAdminProviderModels } from '@/server/services/adminManagement';
 import { createErrorResponse } from '@/utils/errorResponse';
 
 import { resolveValidWorkspaceIdFromRequest } from '../../_utils/workspace';
@@ -55,6 +56,8 @@ export const GET = checkAuth(async (req, { params, userId, serverDB }) => {
 
   try {
     const workspaceId = await resolveValidWorkspaceIdFromRequest({ req, serverDB, userId });
+    const managedModels = await getAdminProviderModels(provider);
+    if (managedModels !== undefined) return NextResponse.json(managedModels);
 
     // Read user's provider config from database
     const agentRuntime = await initModelRuntimeFromDB(serverDB, userId, provider, workspaceId);

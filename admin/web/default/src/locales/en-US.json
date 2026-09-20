@@ -251,5 +251,14 @@
   "vision": "Vision",
   "wallets": "Wallets",
   "walletsHint": "View available and reserved credits and make audited adjustments.",
-  "webhookSecret": "Webhook signing secret"
+  "webhookSecret": "Webhook signing secret",
+  "providerAutoIdHint": "ID is assigned automatically as a number when saved.",
+  "fetchProviderModels": "Fetch provider models",
+  "fetchProviderModelsHint": "Uses the saved provider credentials. Select a model, review its capabilities and prices, then save and activate to publish it. Manual model IDs are also supported.",
+  "selectFetchedModel": "Select a fetched model",
+  "error.provider_credentials": "Provider rejected the saved credentials. Check the API key and its permissions.",
+  "error.provider_endpoint": "Model endpoint returned an error. Check the provider API URL.",
+  "error.provider_unavailable": "Provider connection failed or timed out. Retry after checking network access.",
+  "error.provider_models_unsupported": "This SDK does not support model discovery here. Enter the model ID manually.",
+  "error.provider_models_invalid": "Provider returned an invalid or oversized model list."
 }

@@ -15,6 +15,7 @@ import {
   normalizeAiModelType,
   resolveModelSearchDefaultSettings,
 } from 'model-bank';
+import { AiProviderSDKEnum } from 'model-bank/aiProvider';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 import pMap from 'p-map';
 
@@ -95,6 +96,16 @@ export class AiInfraRepos {
    * Calculate the final providerList based on the known providerConfig
    */
   getAiProviderList = async () => {
+    if (this.isAdminManaged()) {
+      return Object.entries(this.providerConfigs)
+        .filter(([, config]) => config.adminManaged && config.name)
+        .map(([id, config]): AiProviderListItem => ({
+          enabled: config.enabled,
+          id,
+          name: config.name,
+          source: 'builtin',
+        }));
+    }
     const userProviders = await this.aiProviderModel.getAiProviderList();
 
     // 1. First create a mapping based on DEFAULT_MODEL_PROVIDER_LIST id order
@@ -140,6 +151,18 @@ export class AiInfraRepos {
    * used in the chat page. to show the enabled models
    */
   getEnabledModels = async (filterEnabled: boolean = true) => {
+    if (this.isAdminManaged()) {
+      return Object.entries(this.providerConfigs).flatMap(([providerId, config]) =>
+        config.enabled
+          ? (config.serverModelLists ?? []).map((model) => ({
+              ...model,
+              abilities: model.abilities ?? {},
+              enabled: true,
+              providerId,
+            }))
+          : [],
+      ) as EnabledAiModel[];
+    }
     const [providers, allModels] = await Promise.all([
       this.getAiProviderList(),
       this.aiModelModel.getAllModels(),
@@ -226,6 +249,21 @@ export class AiInfraRepos {
     Object.entries(result).forEach(([key, value]) => {
       runtimeConfig[key] = merge(this.providerConfigs[key] || {}, value);
     });
+    if (this.isAdminManaged()) {
+      for (const key of Object.keys(runtimeConfig)) delete runtimeConfig[key];
+      for (const [id, config] of Object.entries(this.providerConfigs)) {
+        if (!config.enabled) continue;
+        runtimeConfig[id] = {
+          config: {},
+          fetchOnClient: false,
+          keyVaults: {},
+          settings: {
+            sdkType:
+              Object.values(AiProviderSDKEnum).find((sdk) => sdk === config.sdkType) ?? 'openai',
+          },
+        };
+      }
+    }
     const enabledAiModels = allModels.filter((model) => model.enabled);
     const enabledChatAiProviders = enabledAiProviders.filter((provider) => {
       return allModels.some((model) => model.providerId === provider.id && model.type === 'chat');
@@ -357,6 +395,19 @@ export class AiInfraRepos {
       type?: string;
     },
   ) => {
+    if (this.isAdminManaged()) {
+      let list = this.providerConfigs[providerId]?.enabled
+        ? ((await this.fetchBuiltinModels(providerId)) ?? [])
+        : [];
+      if (typeof options?.enabled === 'boolean')
+        list = list.filter((m) => m.enabled === options.enabled);
+      if (options?.type) list = list.filter((m) => m.type === options.type);
+      const offset = Math.max(0, options?.offset ?? 0);
+      return list.slice(
+        offset,
+        options?.limit === undefined ? undefined : offset + Math.max(0, options.limit),
+      );
+    }
     const aiModels = await this.aiModelModel.getModelListByProviderId(providerId);
 
     const defaultModels: AiProviderModelListItem[] =
@@ -420,6 +471,15 @@ export class AiInfraRepos {
    * use in the `/settings/provider/[id]` page
    */
   getAiProviderDetail = async (id: string, decryptor?: DecryptUserKeyVaults) => {
+    if (this.isAdminManaged()) {
+      const config = this.providerConfigs[id];
+      return {
+        ...config,
+        id,
+        keyVaults: {},
+        settings: { sdkType: config?.sdkType },
+      } as AiProviderDetailItem;
+    }
     const config = await this.aiProviderModel.getAiProviderById(id, decryptor);
 
     return merge(this.providerConfigs[id] || {}, config) as AiProviderDetailItem;
@@ -432,6 +492,9 @@ export class AiInfraRepos {
     this.modelBankModelsPromise ??= loadModels();
     return this.modelBankModelsPromise;
   };
+
+  private isAdminManaged = () =>
+    Object.values(this.providerConfigs).some((config) => config.adminManaged);
 
   private fetchBuiltinModels = async (
     providerId: string,

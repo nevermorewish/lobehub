@@ -93,6 +93,40 @@ func TestProviderSecretsAndOptimisticLock(t *testing.T) {
 	}
 }
 
+func TestGeneratedProviderIDsAndPriceAssociation(t *testing.T) {
+	s := testService(t)
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	ids := make(chan string, 6)
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p, err := s.CreateProvider(ctx, "operator", ProviderInput{Name: "Automatic", SDKType: "openai", Enabled: true, Credentials: Credentials{APIKey: "test-key"}})
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ids <- p.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	seen := map[string]bool{}
+	for id := range ids {
+		if id == "" || strings.Trim(id, "0123456789") != "" || seen[id] {
+			t.Fatalf("invalid generated id: %q", id)
+		}
+		seen[id] = true
+		if _, err := s.SavePrice(ctx, "operator", model.Price{Provider: id, ModelID: "test-model", IsActive: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(seen) != 6 {
+		t.Fatalf("created %d providers", len(seen))
+	}
+}
+
 func TestConcurrentPriceActivationKeepsOneVersion(t *testing.T) {
 	s := testService(t)
 	ctx := context.Background()

@@ -16,7 +16,7 @@ const emptyProvider: Provider = {
   sdkType: 'openai',
   baseURL: '',
   region: '',
-  enabled: false,
+  enabled: true,
   configured: false,
   revision: 0,
 };
@@ -57,31 +57,34 @@ function ProviderEditor({
           sessionToken,
           clearSecrets,
         } = draft;
-        await api(`/api/admin/providers/${encodeURIComponent(draft.id)}`, 'PUT', {
-          name,
-          sdkType,
-          baseURL,
-          region,
-          enabled,
-          revision,
-          apiKey,
-          accessKeyId,
-          secretAccessKey,
-          sessionToken,
-          clearSecrets,
-        });
+        await api(
+          provider.id
+            ? `/api/admin/providers/${encodeURIComponent(provider.id)}`
+            : '/api/admin/providers',
+          provider.id ? 'PUT' : 'POST',
+          {
+            name,
+            sdkType,
+            baseURL,
+            region,
+            enabled,
+            revision,
+            apiKey,
+            accessKeyId,
+            secretAccessKey,
+            sessionToken,
+            clearSecrets,
+          },
+        );
         await refresh();
       }}
     >
       <div className={styles.fields}>
-        <Field
-          required
-          disabled={!!provider.id}
-          hint={t('providerIdHint')}
-          label={t('id')}
-          value={draft.id}
-          onChange={(id) => setDraft({ ...draft, id })}
-        />
+        {provider.id ? (
+          <Field disabled label={t('id')} value={provider.id} onChange={() => {}} />
+        ) : (
+          <span className={styles.muted}>{t('providerAutoIdHint')}</span>
+        )}
         <Field
           required
           label={t('name')}

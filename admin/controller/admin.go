@@ -112,7 +112,29 @@ func (h *Controller) SaveProvider(c *gin.Context) {
 	if !bind(c, &input) {
 		return
 	}
+	if input.Revision < 1 {
+		Fail(c, 400, "invalid_input", "Create providers through POST to receive an automatic ID")
+		return
+	}
 	data, err := h.Service.SaveProvider(c.Request.Context(), c.GetString("actor"), c.Param("id"), input)
+	respond(c, data, err)
+}
+func (h *Controller) CreateProvider(c *gin.Context) {
+	input := service.ProviderInput{Enabled: true}
+	if !bind(c, &input) {
+		return
+	}
+	data, err := h.Service.CreateProvider(c.Request.Context(), c.GetString("actor"), input)
+	respond(c, data, err)
+}
+
+func (h *Controller) ProviderModels(c *gin.Context) {
+	data, err := h.Service.ProviderModels(c.Request.Context(), c.Param("id"))
+	var upstream *service.ModelListError
+	if errors.As(err, &upstream) {
+		Fail(c, http.StatusBadGateway, upstream.Code, "Check provider credentials, API URL and model-list support")
+		return
+	}
 	respond(c, data, err)
 }
 func (h *Controller) Prices(c *gin.Context) {

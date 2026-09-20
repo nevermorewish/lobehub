@@ -12,7 +12,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=frontend /build/web/dist ./web/default/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /admin .
+ARG GO_BUILD_PARALLELISM=2
+RUN GOMAXPROCS=${GO_BUILD_PARALLELISM} CGO_ENABLED=0 go build -p=${GO_BUILD_PARALLELISM} -trimpath -ldflags="-s -w" -o /admin .
 
 FROM alpine:3.23
 RUN apk add --no-cache ca-certificates tzdata && addgroup -S admin && adduser -S -G admin admin

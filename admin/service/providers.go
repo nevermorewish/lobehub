@@ -14,6 +14,16 @@ import (
 )
 
 var identifier = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`)
+var providerIdentifier = regexp.MustCompile(`^(?:[1-9][0-9]{0,18}|[a-z][a-z0-9_-]{0,63})$`)
+
+func (s *Service) CreateProvider(ctx context.Context, actor string, input ProviderInput) (ProviderView, error) {
+	var id string
+	if err := s.DB.WithContext(ctx).Raw("SELECT nextval('admin_provider_id_seq')::text").Scan(&id).Error; err != nil {
+		return ProviderView{}, err
+	}
+	input.Revision = 0
+	return s.SaveProvider(ctx, actor, id, input)
+}
 
 type Credentials struct {
 	APIKey          string `json:"apiKey,omitempty"`
@@ -88,7 +98,7 @@ func (s *Service) SaveProvider(ctx context.Context, actor, id string, input Prov
 	var result ProviderView
 	input.Name = strings.TrimSpace(input.Name)
 	input.BaseURL = strings.TrimRight(strings.TrimSpace(input.BaseURL), "/")
-	if !identifier.MatchString(id) || !identifier.MatchString(input.SDKType) || input.Name == "" || len(input.Name) > 128 || !validURL(input.BaseURL, true) {
+	if !providerIdentifier.MatchString(id) || !identifier.MatchString(input.SDKType) || input.Name == "" || len(input.Name) > 128 || !validURL(input.BaseURL, true) {
 		return result, ErrInvalid
 	}
 	err := s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

@@ -96,7 +96,14 @@ RUN pnpm exec tsx scripts/dockerPrebuild.mts
 RUN rm -rf src/app/desktop "src/app/(backend)/trpc/desktop"
 
 # run build standalone for docker version
-RUN npm run build:docker
+ARG GLIBC_TUNABLES
+ARG RAYON_NUM_THREADS
+ARG BUILD_CPUSET
+RUN if [ -n "${BUILD_CPUSET:-}" ]; then \
+        taskset -c "$BUILD_CPUSET" npm run build:docker; \
+    else \
+        npm run build:docker; \
+    fi
 RUN pnpm exec esbuild scripts/elasticsearchReindex/index.ts --bundle --platform=node --format=cjs --outfile=/app/fts-search-elasticsearch-reindex.cjs --external:pg --external:drizzle-orm '--external:drizzle-orm/*'
 RUN pnpm exec esbuild scripts/elasticsearchSync/cli.ts --bundle --platform=node --format=cjs --outfile=/app/fts-search-elasticsearch-sync.cjs --external:pg --external:drizzle-orm '--external:drizzle-orm/*'
 RUN pnpm exec esbuild scripts/elasticsearchCleanupIneligibleMessages/cli.ts --bundle --platform=node --format=cjs --outfile=/app/fts-search-ineligible-message-cleanup.cjs --external:pg --external:drizzle-orm '--external:drizzle-orm/*'

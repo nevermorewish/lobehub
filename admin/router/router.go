@@ -43,6 +43,8 @@ func New(s *service.Service, web fs.FS) *gin.Engine {
 	admin.POST("/users/:id/revoke-sessions", h.RevokeUserSessions)
 	admin.POST("/users/:id/wallet", h.UserWallet)
 	admin.GET("/providers", h.Providers)
+	admin.POST("/providers", h.CreateProvider)
+	admin.GET("/providers/:id/models", h.ProviderModels)
 	admin.PUT("/providers/:id", h.SaveProvider)
 	admin.GET("/prices", h.Prices)
 	admin.POST("/prices", h.SavePrice)

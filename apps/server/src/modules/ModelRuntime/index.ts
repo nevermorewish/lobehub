@@ -535,7 +535,7 @@ export const initModelRuntimeFromDB = async (
     keyVaults = { ...keyVaults, ...freshKeyVaults } as ProviderKeyVaults;
   }
 
-  const userConfigured = hasUserProviderConfiguration(keyVaults);
+  const userConfigured = !process.env.ADMIN_SERVICE_URL && hasUserProviderConfiguration(keyVaults);
   const platformPayload = userConfigured
     ? undefined
     : await getAdminProviderPayload(provider);

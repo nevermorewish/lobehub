@@ -19,6 +19,7 @@ import {
 } from '../components';
 import { styles } from '../styles';
 import type { Page, Price, Provider } from '../types';
+import { ProviderModelPicker } from './provider-model-picker';
 
 const emptyPrice: Price = {
   modelType: 'chat',
@@ -88,7 +89,15 @@ function PriceEditor({
             { value: '', label: t('selectProvider') },
             ...providers.map((p) => ({ value: p.id, label: p.name })),
           ]}
-          onChange={(provider) => setDraft({ ...draft, provider })}
+          onChange={(provider) => setDraft({ ...draft, provider, modelId: '', displayName: '' })}
+        />
+        <ProviderModelPicker
+          key={draft.provider}
+          modelId={draft.modelId}
+          provider={draft.provider}
+          onSelect={(model) =>
+            setDraft({ ...draft, modelId: model.id, displayName: model.displayName })
+          }
         />
         <Field
           required
