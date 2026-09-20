@@ -145,11 +145,17 @@ export function Editor({
   children,
   onSave,
   onClose,
+  saveLabel,
+  saveDisabled = false,
+  dirty: externalDirty = false,
 }: {
   title: string;
   children: ReactNode;
   onSave: () => Promise<void>;
   onClose: () => void;
+  saveLabel?: string;
+  saveDisabled?: boolean;
+  dirty?: boolean;
 }) {
   const { t } = useTranslation();
   const [pending, setPending] = useState(false);
@@ -157,10 +163,11 @@ export function Editor({
   const [error, setError] = useState<unknown>();
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty) event.preventDefault();
+      if (dirty || externalDirty) event.preventDefault();
     };
     const navigate = (event: Event) => {
-      if ((dirty || pending) && (pending || !window.confirm(t('unsaved')))) event.preventDefault();
+      if ((dirty || externalDirty || pending) && (pending || !window.confirm(t('unsaved'))))
+        event.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     window.addEventListener('admin:navigate', navigate);
@@ -168,9 +175,10 @@ export function Editor({
       window.removeEventListener('beforeunload', warn);
       window.removeEventListener('admin:navigate', navigate);
     };
-  }, [dirty, pending, t]);
+  }, [dirty, externalDirty, pending, t]);
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (pending || saveDisabled) return;
     setPending(true);
     setError(undefined);
     try {
@@ -193,13 +201,13 @@ export function Editor({
           </fieldset>
           {error !== undefined && <ErrorNotice error={error} />}
           <Flexbox horizontal gap={12}>
-            <Button htmlType="submit" loading={pending} type="primary">
-              {t('save')}
+            <Button disabled={saveDisabled} htmlType="submit" loading={pending} type="primary">
+              {saveLabel ?? t('save')}
             </Button>
             <Button
               disabled={pending}
               onClick={() => {
-                if (!dirty || window.confirm(t('unsaved'))) onClose();
+                if ((!dirty && !externalDirty) || window.confirm(t('unsaved'))) onClose();
               }}
             >
               {t('cancel')}

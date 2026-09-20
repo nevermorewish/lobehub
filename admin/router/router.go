@@ -48,6 +48,7 @@ func New(s *service.Service, web fs.FS) *gin.Engine {
 	admin.PUT("/providers/:id", h.SaveProvider)
 	admin.GET("/prices", h.Prices)
 	admin.POST("/prices", h.SavePrice)
+	admin.POST("/prices/batch", h.AddPrices)
 	admin.DELETE("/prices/:id", h.ArchivePrice)
 	admin.GET("/payments", h.Payments)
 	admin.GET("/billing/wallets", h.BillingWallets)

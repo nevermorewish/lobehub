@@ -16,6 +16,7 @@ import (
 type ProviderModel struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"displayName"`
+	Configured  bool   `json:"configured"`
 }
 
 // Only stable error codes cross the API boundary; upstream bodies may contain secrets.
@@ -43,7 +44,22 @@ func (s *Service) ProviderModels(ctx context.Context, id string) ([]ProviderMode
 		return nil, &ModelListError{Code: "provider_credentials"}
 	}
 	// A disabled provider may be inspected before publishing it to users.
-	return fetchProviderModels(ctx, provider.SDKType, provider.BaseURL, credentials)
+	models, err := fetchProviderModels(ctx, provider.SDKType, provider.BaseURL, credentials)
+	if err != nil {
+		return nil, err
+	}
+	var configured []string
+	if err := s.DB.WithContext(ctx).Model(&model.Price{}).Where("provider = ? AND archived_at IS NULL", id).Pluck("model_id", &configured).Error; err != nil {
+		return nil, err
+	}
+	present := map[string]bool{}
+	for _, modelID := range configured {
+		present[modelID] = true
+	}
+	for i := range models {
+		models[i].Configured = present[models[i].ID]
+	}
+	return models, nil
 }
 
 func fetchProviderModels(ctx context.Context, sdk, baseURL string, credentials Credentials) ([]ProviderModel, error) {

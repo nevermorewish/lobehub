@@ -28,7 +28,7 @@ func (s *Service) Prices(ctx context.Context, search string, archived bool, page
 	return result, err
 }
 
-func (s *Service) SavePrice(ctx context.Context, actor string, input model.Price) (model.Price, error) {
+func preparePrice(input model.Price) (model.Price, error) {
 	if input.ModelType == "" {
 		input.ModelType = "chat"
 	}
@@ -49,21 +49,34 @@ func (s *Service) SavePrice(ctx context.Context, actor string, input model.Price
 	}
 	input.ArchivedAt = nil
 	input.CreatedAt = time.Time{}
+	return input, nil
+}
+
+// The caller holds the provider row lock before creating a price version.
+func createPrice(tx *gorm.DB, actor string, input *model.Price) error {
+	if input.IsActive {
+		if err := tx.Model(&model.Price{}).Where("provider = ? AND model_id = ? AND is_active = true AND archived_at IS NULL", input.Provider, input.ModelID).Updates(map[string]any{"is_active": false, "archived_at": time.Now().UTC()}).Error; err != nil {
+			return err
+		}
+	}
+	if err := tx.Create(input).Error; err != nil {
+		return err
+	}
+	return audit(tx, actor, "price.create", input.ID)
+}
+
+func (s *Service) SavePrice(ctx context.Context, actor string, input model.Price) (model.Price, error) {
+	input, err := preparePrice(input)
+	if err != nil {
+		return input, err
+	}
 	err = s.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Lock the owning provider, including when there is no previous price row.
 		var provider model.Provider
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&provider, "id = ?", input.Provider).Error; err != nil {
 			return err
 		}
-		if input.IsActive {
-			if err := tx.Model(&model.Price{}).Where("provider = ? AND model_id = ? AND is_active = true AND archived_at IS NULL", input.Provider, input.ModelID).Updates(map[string]any{"is_active": false, "archived_at": time.Now().UTC()}).Error; err != nil {
-				return err
-			}
-		}
-		if err := tx.Create(&input).Error; err != nil {
-			return err
-		}
-		return audit(tx, actor, "price.create", input.ID)
+		return createPrice(tx, actor, &input)
 	})
 	return input, err
 }

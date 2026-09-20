@@ -153,6 +153,14 @@ func (h *Controller) SavePrice(c *gin.Context) {
 	data, err := h.Service.SavePrice(c.Request.Context(), c.GetString("actor"), input)
 	respond(c, data, err)
 }
+func (h *Controller) AddPrices(c *gin.Context) {
+	var input service.BulkPriceInput
+	if !bind(c, &input) {
+		return
+	}
+	data, err := h.Service.AddPrices(c.Request.Context(), c.GetString("actor"), input)
+	respond(c, data, err)
+}
 func (h *Controller) ArchivePrice(c *gin.Context) {
 	err := h.Service.ArchivePrice(c.Request.Context(), c.GetString("actor"), c.Param("id"))
 	respond(c, gin.H{"id": c.Param("id")}, err)

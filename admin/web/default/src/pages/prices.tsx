@@ -1,6 +1,6 @@
 import { Flexbox } from '@lobehub/ui';
 import { Button } from '@lobehub/ui/base-ui';
-import { Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
@@ -19,7 +19,7 @@ import {
 } from '../components';
 import { styles } from '../styles';
 import type { Page, Price, Provider } from '../types';
-import { ProviderModelPicker } from './provider-model-picker';
+import { BulkPriceImporter } from './bulk-price-importer';
 
 const emptyPrice: Price = {
   modelType: 'chat',
@@ -76,8 +76,8 @@ function PriceEditor({
         <Field
           required
           label={t('billing.requestPrice')}
-          min={0}
           max={1000000000}
+          min={0}
           type="number"
           value={draft.requestCreditsFlat}
           onChange={(value) => setDraft({ ...draft, requestCreditsFlat: Number(value) })}
@@ -90,14 +90,6 @@ function PriceEditor({
             ...providers.map((p) => ({ value: p.id, label: p.name })),
           ]}
           onChange={(provider) => setDraft({ ...draft, provider, modelId: '', displayName: '' })}
-        />
-        <ProviderModelPicker
-          key={draft.provider}
-          modelId={draft.modelId}
-          provider={draft.provider}
-          onSelect={(model) =>
-            setDraft({ ...draft, modelId: model.id, displayName: model.displayName })
-          }
         />
         <Field
           required
@@ -169,6 +161,8 @@ export function PricesPage() {
   const [search, setSearch] = useState('');
   const [history, setHistory] = useState(false);
   const [editing, setEditing] = useState<Price>();
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState('');
   const [pending, setPending] = useState('');
   const [actionError, setActionError] = useState<unknown>();
   const { data, error, isLoading, mutate } = useSWR(
@@ -191,6 +185,22 @@ export function PricesPage() {
   };
   return (
     <>
+      {importResult && (
+        <div className={styles.card} role="status">
+          {importResult}
+        </div>
+      )}
+      {importing && (
+        <BulkPriceImporter
+          providers={providers.data ?? []}
+          onClose={() => setImporting(false)}
+          onComplete={(created, skipped) => {
+            setImportResult(t('bulkPrices.result', { created, skipped }));
+            setImporting(false);
+            void mutate().catch(setActionError);
+          }}
+        />
+      )}
       {editing && (
         <PriceEditor
           key={editing.id}
@@ -216,14 +226,26 @@ export function PricesPage() {
               setPage(1);
             }}
           />
-          <Button
-            disabled={!!editing || !providers.data?.length}
-            icon={Plus}
-            type="primary"
-            onClick={() => setEditing(emptyPrice)}
-          >
-            {t('newPrice')}
-          </Button>
+          <Flexbox horizontal gap={12} wrap="wrap">
+            <Button
+              disabled={!!editing || importing || !providers.data?.length}
+              icon={Download}
+              type="primary"
+              onClick={() => {
+                setImportResult('');
+                setImporting(true);
+              }}
+            >
+              {t('bulkPrices.open')}
+            </Button>
+            <Button
+              disabled={!!editing || importing || !providers.data?.length}
+              icon={Plus}
+              onClick={() => setEditing(emptyPrice)}
+            >
+              {t('newPrice')}
+            </Button>
+          </Flexbox>
         </Flexbox>
         {providers.error && (
           <ErrorNotice error={providers.error} retry={() => void providers.mutate()} />
@@ -274,13 +296,13 @@ export function PricesPage() {
                     </td>
                     <td>
                       <Flexbox horizontal gap={8}>
-                        <Button disabled={!!editing} onClick={() => setEditing(price)}>
+                        <Button disabled={!!editing || importing} onClick={() => setEditing(price)}>
                           {t('edit')}
                         </Button>
                         {!price.archivedAt && (
                           <Button
                             danger
-                            disabled={!!pending}
+                            disabled={!!pending || importing}
                             loading={pending === price.id}
                             onClick={() => void archive(price.id)}
                           >
