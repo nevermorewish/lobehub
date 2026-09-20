@@ -2,8 +2,9 @@ import type { EnabledAiModel } from 'model-bank';
 
 import type { HomeNewModelItem } from './useHomeNewModels';
 
-export const managedHomeNewModels = (models: EnabledAiModel[]): HomeNewModelItem[] =>
-  models
+// Runtime models are absent on a cold start until the provider request resolves.
+export const managedHomeNewModels = (models?: EnabledAiModel[] | null): HomeNewModelItem[] =>
+  (models ?? [])
     .flatMap((model): HomeNewModelItem[] => {
       if (!model.enabled || !['chat', 'image', 'video'].includes(model.type)) return [];
       return [

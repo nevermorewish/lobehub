@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { managedHomeNewModels } from './managedHomeNewModels';
 
 describe('managed homepage model shortcuts', () => {
+  it.each([undefined, null])('keeps the first render stable while models are %s', (models) => {
+    expect(managedHomeNewModels(models)).toEqual([]);
+  });
+
   it('keeps empty deployments empty rather than promoting built-in models', () => {
     expect(managedHomeNewModels([])).toEqual([]);
   });

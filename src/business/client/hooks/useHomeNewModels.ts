@@ -26,5 +26,8 @@ export const useHomeNewModels = (fallbackItems: HomeNewModelItem[]): HomeNewMode
   const models = useAiInfraStore((state) => state.enabledAiModels);
   // Managed deployments have no global "new model" promotions: only published
   // catalog entries may become shortcuts, including their actual provider IDs.
-  return { isLoading: false, items: managed ? managedHomeNewModels(models) : fallbackItems };
+  return {
+    isLoading: managed && models == null,
+    items: managed ? managedHomeNewModels(models) : fallbackItems,
+  };
 };
